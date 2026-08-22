@@ -6,14 +6,15 @@ import { BudgetPanel } from "@/features/mycity/mission-library/components/Budget
 import { BuildSummary } from "@/features/mycity/mission-library/components/BuildSummary";
 import { FinalReport } from "@/features/mycity/mission-library/components/FinalReport";
 import { FootprintPreviewOverlay } from "@/features/mycity/mission-library/components/FootprintPreviewOverlay";
+import { LanguageSelector } from "@/features/mycity/mission-library/components/LanguageSelector";
 import { MissionBuildPanel } from "@/features/mycity/mission-library/components/MissionBuildPanel";
 import { PlotOverlay } from "@/features/mycity/mission-library/components/PlotOverlay";
 import { libraryBudgetConfig } from "@/features/mycity/mission-library/data/budgetConfig";
-import { missionCompletionConfig } from "@/features/mycity/mission-library/data/completionConfig";
 import {
   elBahdjaCampusMap,
   getCampusMapImageSrc,
 } from "@/features/mycity/mission-library/data/mapConfig";
+import { localeDir, t, type Locale } from "@/features/mycity/mission-library/data/i18n";
 import { libraryMissionConfig } from "@/features/mycity/mission-library/data/missionConfig";
 import {
   emptyGuidedReportAnswers,
@@ -40,9 +41,9 @@ import type {
 
 export function Mission01SchoolLibraryPage() {
   const { plot } = elBahdjaCampusMap;
-  const { dimensions, label: plotLabel } = plot;
-  const { labels, formulas, story, title } = libraryMissionConfig;
+  const { dimensions } = plot;
 
+  const [locale, setLocale] = useState<Locale>("en");
   const [plotInspected, setPlotInspected] = useState(false);
   const [areaInput, setAreaInput] = useState("");
   const [perimeterInput, setPerimeterInput] = useState("");
@@ -219,16 +220,23 @@ export function Mission01SchoolLibraryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
-        <header className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-sky-700">
-            {libraryMissionConfig.schoolName}
-          </p>
+      <div
+        className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8"
+        dir={localeDir(locale)}
+        lang={locale}
+      >
+        <header className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <p className="text-sm font-medium uppercase tracking-wide text-sky-700">
+              {libraryMissionConfig.schoolName}
+            </p>
+            <LanguageSelector locale={locale} onChange={setLocale} />
+          </div>
           <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-3xl">
-            {title}
+            {t(locale, "mission.title")}
           </h1>
           <p className="max-w-3xl text-sm text-slate-600 sm:text-base">
-            {labels.inspectPlot}
+            {t(locale, "mission.inspectPlot")}
           </p>
         </header>
 
@@ -240,7 +248,7 @@ export function Mission01SchoolLibraryPage() {
             >
               <img
                 src={mapImageSrc}
-                alt={elBahdjaCampusMap.title}
+                alt={t(locale, "mission.mapAlt")}
                 className="absolute inset-0 h-full w-full object-contain"
                 onError={handleMapImageError}
               />
@@ -262,14 +270,14 @@ export function Mission01SchoolLibraryPage() {
               ) : (
                 <div className="absolute inset-x-0 bottom-3 flex justify-center px-3">
                   <span className="rounded-lg bg-emerald-700/90 px-4 py-2 text-sm font-semibold text-white">
-                    {missionCompletionConfig.libraryCompletedBadge}
+                    {t(locale, "mission.libraryCompleted")}
                   </span>
                 </div>
               )}
 
               {!plotInspected && !isBuilt ? (
                 <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg bg-slate-900/75 px-3 py-2 text-xs text-white sm:text-sm">
-                  Click the construction plot to inspect it
+                  {t(locale, "mission.clickPlotHint")}
                 </div>
               ) : null}
             </div>
@@ -278,39 +286,40 @@ export function Mission01SchoolLibraryPage() {
           <aside className="flex flex-col gap-4">
             {!plotInspected ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-                Select the empty plot on the campus map to reveal the mission
-                details and geometry task.
+                {t(locale, "mission.selectPlotHint")}
               </div>
             ) : (
               <>
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-900">
-                    {plotLabel}
+                    {t(locale, "mission.plotLabel")}
                   </h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    {labels.plotDimensions}
+                    {t(locale, "mission.plotDimensions")}
                   </p>
 
                   <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <div className="rounded-lg bg-slate-50 p-3">
-                      <dt className="text-slate-500">Length</dt>
+                      <dt className="text-slate-500">{t(locale, "mission.length")}</dt>
                       <dd className="mt-1 text-lg font-semibold">
-                        {dimensions.lengthM} {labels.lengthUnit}
+                        {dimensions.lengthM} {t(locale, "mission.lengthUnit")}
                       </dd>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-3">
-                      <dt className="text-slate-500">Width</dt>
+                      <dt className="text-slate-500">{t(locale, "mission.width")}</dt>
                       <dd className="mt-1 text-lg font-semibold">
-                        {dimensions.widthM} {labels.widthUnit}
+                        {dimensions.widthM} {t(locale, "mission.widthUnit")}
                       </dd>
                     </div>
                     <div className="col-span-2 rounded-lg bg-sky-50 p-3">
-                      <dt className="text-sky-800">Mission budgets</dt>
+                      <dt className="text-sky-800">{t(locale, "mission.budgetsTitle")}</dt>
                       <dd className="mt-1 text-sm font-semibold text-sky-900">
-                        Construction: {libraryBudgetConfig.constructionBudget}{" "}
+                        {t(locale, "mission.constructionBudget")}:{" "}
+                        {libraryBudgetConfig.constructionBudget}{" "}
                         {libraryBudgetConfig.currencyLabel}
                         <br />
-                        Library items: {libraryBudgetConfig.libraryItemsBudget}{" "}
+                        {t(locale, "mission.libraryItemsBudget")}:{" "}
+                        {libraryBudgetConfig.libraryItemsBudget}{" "}
                         {libraryBudgetConfig.currencyLabel}
                       </dd>
                     </div>
@@ -318,29 +327,31 @@ export function Mission01SchoolLibraryPage() {
 
                   <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-4">
                     <h3 className="text-sm font-semibold text-slate-800">
-                      Mission objective
+                      {t(locale, "mission.objectiveTitle")}
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-slate-700">
-                      {story}
+                      {t(locale, "mission.objective")}
                     </p>
                   </div>
                 </section>
 
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-900">
-                    {labels.geometry}
+                    {t(locale, "mission.geometryTitle")}
                   </h2>
                   <p className="mt-2 text-sm text-slate-600">
-                    Use the plot dimensions to calculate area and perimeter.
+                    {t(locale, "mission.geometryHint")}
                   </p>
                   <div className="mt-3 space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:text-sm">
-                    <p>{formulas.area}</p>
-                    <p>{formulas.perimeter}</p>
+                    <p>{t(locale, "mission.formulaArea")}</p>
+                    <p>{t(locale, "mission.formulaPerimeter")}</p>
                   </div>
 
                   <form className="mt-4 space-y-4" onSubmit={handleGeometrySubmit}>
                     <label className="block text-sm">
-                      <span className="font-medium text-slate-700">Area</span>
+                      <span className="font-medium text-slate-700">
+                        {t(locale, "mission.area")}
+                      </span>
                       <div className="mt-1 flex items-center gap-2">
                         <input
                           type="number"
@@ -352,13 +363,13 @@ export function Mission01SchoolLibraryPage() {
                           required
                         />
                         <span className="shrink-0 text-slate-500">
-                          {labels.areaUnit}
+                          {t(locale, "mission.areaUnit")}
                         </span>
                       </div>
                     </label>
                     <label className="block text-sm">
                       <span className="font-medium text-slate-700">
-                        Perimeter
+                        {t(locale, "mission.perimeter")}
                       </span>
                       <div className="mt-1 flex items-center gap-2">
                         <input
@@ -373,7 +384,7 @@ export function Mission01SchoolLibraryPage() {
                           required
                         />
                         <span className="shrink-0 text-slate-500">
-                          {labels.perimeterUnit}
+                          {t(locale, "mission.perimeterUnit")}
                         </span>
                       </div>
                     </label>
@@ -381,7 +392,7 @@ export function Mission01SchoolLibraryPage() {
                       type="submit"
                       className="w-full rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700"
                     >
-                      Check my answers
+                      {t(locale, "mission.checkAnswers")}
                     </button>
                   </form>
 
@@ -395,10 +406,10 @@ export function Mission01SchoolLibraryPage() {
                     >
                       {geometryResult.isValid ? (
                         <p className="font-semibold">
-                          Correct plot area and perimeter.
+                          {t(locale, "mission.geometryCorrect")}
                         </p>
                       ) : (
-                        <ul className="list-disc space-y-1 pl-5">
+                        <ul className="list-disc space-y-1 ps-5">
                           {geometryResult.errors.map((error) => (
                             <li key={error}>{error}</li>
                           ))}
@@ -415,6 +426,7 @@ export function Mission01SchoolLibraryPage() {
         {plotInspected ? (
           <>
             <ArchitectureComparisonPanel
+              locale={locale}
               comparisonResults={comparisonResults}
               finalArchitectureId={finalArchitectureId}
               bonusResult={bonusResult}
@@ -425,6 +437,7 @@ export function Mission01SchoolLibraryPage() {
             />
 
             <BudgetPanel
+              locale={locale}
               finalArchitecture={finalArchitecture}
               onConstructionChange={(result, selections) => {
                 setConstructionPurchase(result);
@@ -443,6 +456,7 @@ export function Mission01SchoolLibraryPage() {
         {geometryResult?.isValid ? (
           <>
             <FinalReport
+              locale={locale}
               answers={reportAnswers}
               onChange={(answers) => {
                 setReportAnswers(answers);
@@ -452,6 +466,7 @@ export function Mission01SchoolLibraryPage() {
             />
 
             <MissionBuildPanel
+              locale={locale}
               geometryResult={geometryResult}
               comparisonResults={comparisonResults}
               finalArchitecture={finalArchitecture}
@@ -465,7 +480,7 @@ export function Mission01SchoolLibraryPage() {
         ) : null}
 
         {isBuilt && missionScore ? (
-          <BuildSummary score={missionScore} />
+          <BuildSummary locale={locale} score={missionScore} />
         ) : null}
       </div>
     </div>

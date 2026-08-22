@@ -1,6 +1,7 @@
 "use client";
 
-import { reportTemplateConfig } from "@/features/mycity/mission-library/data/reportConfig";
+import { localizedReportPrompts } from "@/features/mycity/mission-library/data/reportConfig";
+import { t, type Locale } from "@/features/mycity/mission-library/data/i18n";
 import { validateGuidedReportAnswers } from "@/features/mycity/mission-library/logic/validation";
 import type {
   GuidedReportAnswers,
@@ -8,6 +9,7 @@ import type {
 } from "@/features/mycity/mission-library/types/missionTypes";
 
 interface FinalReportProps {
+  locale: Locale;
   answers: GuidedReportAnswers;
   onChange: (answers: GuidedReportAnswers) => void;
   summary?: {
@@ -26,7 +28,7 @@ function LanguageReportForm({
 }: {
   languageLabel: string;
   dir?: "rtl";
-  prompts: typeof reportTemplateConfig.reportPrompts;
+  prompts: (typeof localizedReportPrompts)[Locale];
   values: GuidedReportLanguageAnswers;
   onFieldChange: (
     field: keyof GuidedReportLanguageAnswers,
@@ -73,7 +75,12 @@ function LanguageReportForm({
   );
 }
 
-export function FinalReport({ answers, onChange, summary }: FinalReportProps) {
+export function FinalReport({
+  locale,
+  answers,
+  onChange,
+  summary,
+}: FinalReportProps) {
   const validation = validateGuidedReportAnswers(answers);
 
   function updateLanguage(
@@ -93,32 +100,31 @@ export function FinalReport({ answers, onChange, summary }: FinalReportProps) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-900">
-        Trilingual mission report
+        {t(locale, "report.sectionTitle")}
       </h2>
       <p className="mt-2 text-sm text-slate-600">
-        Write your own justification in English, French, and Arabic before
-        building. The summary below appears only after a successful build.
+        {t(locale, "report.sectionDescription")}
       </p>
 
       <div className="mt-4 space-y-6">
         <LanguageReportForm
-          languageLabel="English"
-          prompts={reportTemplateConfig.reportPrompts}
+          languageLabel={t(locale, "report.english")}
+          prompts={localizedReportPrompts.en}
           values={answers.english}
           onFieldChange={(field, value) =>
             updateLanguage("english", field, value)
           }
         />
         <LanguageReportForm
-          languageLabel="French"
-          prompts={reportTemplateConfig.reportPrompts}
+          languageLabel={t(locale, "report.french")}
+          prompts={localizedReportPrompts.fr}
           values={answers.french}
           onFieldChange={(field, value) => updateLanguage("french", field, value)}
         />
         <LanguageReportForm
-          languageLabel="Arabic"
+          languageLabel={t(locale, "report.arabic")}
           dir="rtl"
-          prompts={reportTemplateConfig.reportPrompts}
+          prompts={localizedReportPrompts.ar}
           values={answers.arabic}
           onFieldChange={(field, value) => updateLanguage("arabic", field, value)}
         />
@@ -126,8 +132,8 @@ export function FinalReport({ answers, onChange, summary }: FinalReportProps) {
 
       {!validation.isValid ? (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-semibold">Report not ready yet:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
+          <p className="font-semibold">{t(locale, "report.notReady")}</p>
+          <ul className="mt-2 list-disc space-y-1 ps-5">
             {validation.errors.map((error) => (
               <li key={error}>{error}</li>
             ))}
@@ -135,15 +141,14 @@ export function FinalReport({ answers, onChange, summary }: FinalReportProps) {
         </div>
       ) : (
         <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          Trilingual justification complete. You can build when all other tasks are
-          done.
+          {t(locale, "report.complete")}
         </p>
       )}
 
       {summary ? (
         <div className="mt-6 space-y-4">
           <h3 className="text-sm font-semibold text-slate-800">
-            Final validated summary
+            {t(locale, "report.finalSummaryTitle")}
           </h3>
           <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
             {summary.english}

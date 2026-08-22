@@ -1,5 +1,9 @@
 import { getStoreItemById } from "../data/storeCatalog";
-import { reportTemplateConfig } from "../data/reportConfig";
+import {
+  localizedReportSummaryLabels,
+  reportTemplateConfig,
+} from "../data/reportConfig";
+import type { Locale } from "../data/i18n";
 import type {
   GuidedReportAnswers,
   MissionReportData,
@@ -90,61 +94,59 @@ export function buildMissionReportData(input: {
   };
 }
 
+function localizeNoneSelected(label: string, locale: Locale): string {
+  if (label === reportTemplateConfig.noneSelectedLabel.en) {
+    return reportTemplateConfig.noneSelectedLabel[locale];
+  }
+
+  return label;
+}
+
 function formatLanguageSummary(
-  languageLabel: string,
+  locale: Locale,
   data: MissionReportData,
   answers: GuidedReportAnswers["english"],
 ): string {
+  const labels = localizedReportSummaryLabels[locale];
+
   return [
-    `${data.schoolName} — ${languageLabel} mission report`,
+    `${data.schoolName} — ${labels.missionReport}`,
     "",
-    "Learner justification",
-    `- Architecture choice: ${answers.architectureChoice}`,
-    `- Area comparison: ${answers.areaComparison}`,
-    `- Wall length comparison: ${answers.wallLengthComparison}`,
-    `- Construction cost comparison: ${answers.constructionCostComparison}`,
-    `- Library-items budget use: ${answers.libraryItemsBudgetUse}`,
-    `- Reading support: ${answers.readingSupport}`,
-    `- Digital learning support: ${answers.digitalLearningSupport}`,
-    `- Accessibility support: ${answers.accessibilitySupport}`,
+    labels.learnerJustification,
+    `- ${labels.architectureChoice}: ${answers.architectureChoice}`,
+    `- ${labels.areaComparison}: ${answers.areaComparison}`,
+    `- ${labels.wallLengthComparison}: ${answers.wallLengthComparison}`,
+    `- ${labels.constructionCostComparison}: ${answers.constructionCostComparison}`,
+    `- ${labels.libraryItemsBudgetUse}: ${answers.libraryItemsBudgetUse}`,
+    `- ${labels.readingSupport}: ${answers.readingSupport}`,
+    `- ${labels.digitalLearningSupport}: ${answers.digitalLearningSupport}`,
+    `- ${labels.accessibilitySupport}: ${answers.accessibilitySupport}`,
     "",
-    "Validated mission summary",
-    `- Selected architecture: ${data.architectureName}`,
-    `- Selected indoor area: ${data.architectureIndoorArea} m²`,
-    `- Selected wall length: ${data.architectureWallLength} m`,
-    `- Construction cost: ${data.constructionCost} ${data.currencyLabel}`,
-    `- Remaining construction budget: ${data.remainingConstructionBudget} ${data.currencyLabel}`,
-    `- Library-items cost: ${data.libraryItemsCost} ${data.currencyLabel}`,
-    `- Remaining library-items budget: ${data.remainingLibraryItemsBudget} ${data.currencyLabel}`,
-    `- Reading resources: ${data.readingResourcesLabel}`,
-    `- Digital learning resources: ${data.digitalResourcesLabel}`,
-    `- Accessibility/inclusion choices: ${data.inclusionResourcesLabel}`,
-    `- Final score: ${data.finalScore}/100`,
+    labels.validatedMissionSummary,
+    `- ${labels.selectedArchitecture}: ${data.architectureName}`,
+    `- ${labels.selectedIndoorArea}: ${data.architectureIndoorArea} m²`,
+    `- ${labels.selectedWallLength}: ${data.architectureWallLength} m`,
+    `- ${labels.constructionCost}: ${data.constructionCost} ${data.currencyLabel}`,
+    `- ${labels.remainingConstructionBudget}: ${data.remainingConstructionBudget} ${data.currencyLabel}`,
+    `- ${labels.libraryItemsCost}: ${data.libraryItemsCost} ${data.currencyLabel}`,
+    `- ${labels.remainingLibraryItemsBudget}: ${data.remainingLibraryItemsBudget} ${data.currencyLabel}`,
+    `- ${labels.readingResources}: ${localizeNoneSelected(data.readingResourcesLabel, locale)}`,
+    `- ${labels.digitalLearningResources}: ${localizeNoneSelected(data.digitalResourcesLabel, locale)}`,
+    `- ${labels.accessibilityInclusionChoices}: ${localizeNoneSelected(data.inclusionResourcesLabel, locale)}`,
+    `- ${labels.finalScore}: ${data.finalScore}/100`,
   ].join("\n");
 }
 
 export function generateEnglishReport(data: MissionReportData): string {
-  return formatLanguageSummary(
-    "English",
-    data,
-    data.learnerAnswers.english,
-  );
+  return formatLanguageSummary("en", data, data.learnerAnswers.english);
 }
 
 export function generateFrenchReport(data: MissionReportData): string {
-  return formatLanguageSummary(
-    "French",
-    data,
-    data.learnerAnswers.french,
-  );
+  return formatLanguageSummary("fr", data, data.learnerAnswers.french);
 }
 
 export function generateArabicReport(data: MissionReportData): string {
-  return formatLanguageSummary(
-    "Arabic",
-    data,
-    data.learnerAnswers.arabic,
-  );
+  return formatLanguageSummary("ar", data, data.learnerAnswers.arabic);
 }
 
 export function generateTrilingualReports(data: MissionReportData) {

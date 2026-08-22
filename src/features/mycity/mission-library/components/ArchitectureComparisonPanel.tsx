@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  architectureComparisonUiConfig,
-  requiredArchitectureIds,
-  requiredArchitectureProfiles,
-} from "@/features/mycity/mission-library/data/architectureComparisonConfig";
+import { requiredArchitectureIds, requiredArchitectureProfiles } from "@/features/mycity/mission-library/data/architectureComparisonConfig";
+import { t, type Locale } from "@/features/mycity/mission-library/data/i18n";
 import {
   canSelectFinalArchitecture,
   canUnlockBonusChallenge,
@@ -31,6 +28,7 @@ import type {
 } from "@/features/mycity/mission-library/types/missionTypes";
 
 interface ArchitectureComparisonPanelProps {
+  locale: Locale;
   comparisonResults: Partial<Record<RequiredArchitectureId, ArchitectureDesignResult>>;
   finalArchitectureId: RequiredArchitectureId | null;
   bonusResult: ArchitectureDesignResult | null;
@@ -46,20 +44,24 @@ interface ArchitectureComparisonPanelProps {
   onFootprintPreviewChange?: (preview: FootprintPreviewData | null) => void;
 }
 
-function CoordinateExplanation() {
+function CoordinateExplanation({ locale }: { locale: Locale }) {
   return (
     <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-950">
-      <p>{architectureComparisonUiConfig.coordinateExplanation}</p>
+      <p>{t(locale, "architecture.coordinateExplanation")}</p>
       <p className="mt-2 text-xs text-sky-900">
-        Coordinates are in meters on the construction plot — not screen pixels.
-        The map preview projects your math coordinates onto the perspective plot
-        polygon.
+        {t(locale, "architecture.coordinateNote")}
       </p>
     </div>
   );
 }
 
-function CheckedDesignSummary({ result }: { result: ArchitectureDesignResult }) {
+function CheckedDesignSummary({
+  locale,
+  result,
+}: {
+  locale: Locale;
+  result: ArchitectureDesignResult;
+}) {
   const showDimensions =
     result.computedLength !== undefined && result.computedWidth !== undefined;
 
@@ -72,49 +74,63 @@ function CheckedDesignSummary({ result }: { result: ArchitectureDesignResult }) 
       }`}
     >
       <p className="font-semibold">
-        {result.isValid ? "Valid design" : "Design needs corrections"}
+        {result.isValid
+          ? t(locale, "architecture.validDesign")
+          : t(locale, "architecture.needsCorrections")}
       </p>
       <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {showDimensions ? (
           <>
             <div>
-              <dt className="text-xs uppercase text-slate-500">Length</dt>
+              <dt className="text-xs uppercase text-slate-500">
+                {t(locale, "architecture.length")}
+              </dt>
               <dd className="font-semibold">{result.computedLength} m</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase text-slate-500">Width</dt>
+              <dt className="text-xs uppercase text-slate-500">
+                {t(locale, "architecture.width")}
+              </dt>
               <dd className="font-semibold">{result.computedWidth} m</dd>
             </div>
           </>
         ) : null}
         <div>
-          <dt className="text-xs uppercase text-slate-500">Indoor area</dt>
+          <dt className="text-xs uppercase text-slate-500">
+            {t(locale, "architecture.indoorArea")}
+          </dt>
           <dd className="font-semibold">{result.indoorArea} m²</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-slate-500">Wall length</dt>
+          <dt className="text-xs uppercase text-slate-500">
+            {t(locale, "architecture.wallLength")}
+          </dt>
           <dd className="font-semibold">{result.wallLength} m</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-slate-500">Floor quantity</dt>
+          <dt className="text-xs uppercase text-slate-500">
+            {t(locale, "architecture.floorQuantity")}
+          </dt>
           <dd className="font-semibold">{result.floorQuantity} m²</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-slate-500">Est. cost</dt>
+          <dt className="text-xs uppercase text-slate-500">
+            {t(locale, "architecture.estCost")}
+          </dt>
           <dd className="font-semibold">
             {result.estimatedConstructionCost} EduCoins
           </dd>
         </div>
       </dl>
       {result.errors.length > 0 ? (
-        <ul className="mt-3 list-disc space-y-1 pl-5">
+        <ul className="mt-3 list-disc space-y-1 ps-5">
           {result.errors.map((error) => (
             <li key={error}>{error}</li>
           ))}
         </ul>
       ) : null}
       {result.warnings.length > 0 ? (
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-amber-900">
+        <ul className="mt-3 list-disc space-y-1 ps-5 text-amber-900">
           {result.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
           ))}
@@ -122,9 +138,9 @@ function CheckedDesignSummary({ result }: { result: ArchitectureDesignResult }) 
       ) : null}
       <div className="mt-3">
         <p className="text-xs font-semibold uppercase text-slate-500">
-          Trade-offs
+          {t(locale, "architecture.tradeOffs")}
         </p>
-        <ul className="mt-1 list-disc space-y-1 pl-5">
+        <ul className="mt-1 list-disc space-y-1 ps-5">
           {result.tradeOffs.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -158,6 +174,7 @@ function NumberField({
 }
 
 export function ArchitectureComparisonPanel({
+  locale,
   comparisonResults,
   finalArchitectureId,
   bonusResult,
@@ -358,16 +375,15 @@ export function ArchitectureComparisonPanel({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-900">
-        {architectureComparisonUiConfig.sectionTitle}
+        {t(locale, "architecture.sectionTitle")}
       </h2>
       <p className="mt-2 text-sm text-slate-600">
-        {architectureComparisonUiConfig.sectionDescription}
+        {t(locale, "architecture.sectionDescription")}
       </p>
       <p className="mt-2 text-xs italic text-slate-500">
-        Construction plot: 18 m × 12 m. Required indoor area: 144–216 m². Calculate
-        before checking — no answers are shown until you click Check this design.
+        {t(locale, "architecture.plotConstraints")}
       </p>
-      <CoordinateExplanation />
+      <CoordinateExplanation locale={locale} />
 
       {requiredArchitectureIds.map((architectureId) => {
         const profile = requiredArchitectureProfiles[architectureId];
@@ -387,81 +403,92 @@ export function ArchitectureComparisonPanel({
             {architectureId === "compact-rectangle" ? (
               <>
                 <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950">
-                  {architectureComparisonUiConfig.compactCoordinateInstruction}
+                  {t(locale, "architecture.compactInstruction")}
                 </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
-                    <p className="text-sm font-medium text-slate-800">A′ — bottom-left</p>
-                    <NumberField label="A′ x (m)" value={compactForm.aPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, aPrimeX: value })); }} />
-                    <NumberField label="A′ y (m)" value={compactForm.aPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, aPrimeY: value })); }} />
+                    <p className="text-sm font-medium text-slate-800">
+                      {t(locale, "architecture.aPrimeBottomLeft")}
+                    </p>
+                    <NumberField label={t(locale, "architecture.aPrimeX")} value={compactForm.aPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, aPrimeX: value })); }} />
+                    <NumberField label={t(locale, "architecture.aPrimeY")} value={compactForm.aPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, aPrimeY: value })); }} />
                   </div>
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
-                    <p className="text-sm font-medium text-slate-800">B′ — bottom-right</p>
-                    <NumberField label="B′ x (m)" value={compactForm.bPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, bPrimeX: value })); }} />
-                    <NumberField label="B′ y (m)" value={compactForm.bPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, bPrimeY: value })); }} />
+                    <p className="text-sm font-medium text-slate-800">
+                      {t(locale, "architecture.bPrimeBottomRight")}
+                    </p>
+                    <NumberField label={t(locale, "architecture.bPrimeX")} value={compactForm.bPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, bPrimeX: value })); }} />
+                    <NumberField label={t(locale, "architecture.bPrimeY")} value={compactForm.bPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, bPrimeY: value })); }} />
                   </div>
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
-                    <p className="text-sm font-medium text-slate-800">C′ — top-right</p>
-                    <NumberField label="C′ x (m)" value={compactForm.cPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, cPrimeX: value })); }} />
-                    <NumberField label="C′ y (m)" value={compactForm.cPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, cPrimeY: value })); }} />
+                    <p className="text-sm font-medium text-slate-800">
+                      {t(locale, "architecture.cPrimeTopRight")}
+                    </p>
+                    <NumberField label={t(locale, "architecture.cPrimeX")} value={compactForm.cPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, cPrimeX: value })); }} />
+                    <NumberField label={t(locale, "architecture.cPrimeY")} value={compactForm.cPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, cPrimeY: value })); }} />
                   </div>
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
-                    <p className="text-sm font-medium text-slate-800">D′ — top-left</p>
-                    <NumberField label="D′ x (m)" value={compactForm.dPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, dPrimeX: value })); }} />
-                    <NumberField label="D′ y (m)" value={compactForm.dPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, dPrimeY: value })); }} />
+                    <p className="text-sm font-medium text-slate-800">
+                      {t(locale, "architecture.dPrimeTopLeft")}
+                    </p>
+                    <NumberField label={t(locale, "architecture.dPrimeX")} value={compactForm.dPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, dPrimeX: value })); }} />
+                    <NumberField label={t(locale, "architecture.dPrimeY")} value={compactForm.dPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, dPrimeY: value })); }} />
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <NumberField label="Your area answer (m²)" value={compactForm.learnerAreaAnswer} onChange={(value) => setCompactForm((current) => ({ ...current, learnerAreaAnswer: value }))} />
-                  <NumberField label="Your wall-length answer (m)" value={compactForm.learnerWallLengthAnswer} onChange={(value) => setCompactForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
+                  <NumberField label={t(locale, "architecture.yourAreaAnswer")} value={compactForm.learnerAreaAnswer} onChange={(value) => setCompactForm((current) => ({ ...current, learnerAreaAnswer: value }))} />
+                  <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={compactForm.learnerWallLengthAnswer} onChange={(value) => setCompactForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
                 </div>
               </>
             ) : null}
 
             {architectureId === "compact-rectangle" && compactPreviewValues ? (
               <p className="mt-2 text-xs text-slate-600">
-                Map preview updated — your proposed footprint is shown on the campus
-                map.
+                {t(locale, "architecture.previewUpdated")}
               </p>
             ) : null}
 
             {architectureId === "two-building" ? (
               <div className="mt-4 space-y-4">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">Building 1</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {t(locale, "architecture.building1")}
+                  </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <NumberField label="x1" value={twoBuildingForm.x1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, x1: value }))} />
-                    <NumberField label="y1" value={twoBuildingForm.y1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, y1: value }))} />
-                    <NumberField label="Length 1" value={twoBuildingForm.length1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, length1: value }))} />
-                    <NumberField label="Width 1" value={twoBuildingForm.width1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, width1: value }))} />
+                    <NumberField label={t(locale, "architecture.x1")} value={twoBuildingForm.x1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, x1: value }))} />
+                    <NumberField label={t(locale, "architecture.y1")} value={twoBuildingForm.y1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, y1: value }))} />
+                    <NumberField label={t(locale, "architecture.length1")} value={twoBuildingForm.length1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, length1: value }))} />
+                    <NumberField label={t(locale, "architecture.width1")} value={twoBuildingForm.width1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, width1: value }))} />
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-800">Building 2</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {t(locale, "architecture.building2")}
+                  </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <NumberField label="x2" value={twoBuildingForm.x2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, x2: value }))} />
-                    <NumberField label="y2" value={twoBuildingForm.y2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, y2: value }))} />
-                    <NumberField label="Length 2" value={twoBuildingForm.length2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, length2: value }))} />
-                    <NumberField label="Width 2" value={twoBuildingForm.width2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, width2: value }))} />
+                    <NumberField label={t(locale, "architecture.x2")} value={twoBuildingForm.x2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, x2: value }))} />
+                    <NumberField label={t(locale, "architecture.y2")} value={twoBuildingForm.y2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, y2: value }))} />
+                    <NumberField label={t(locale, "architecture.length2")} value={twoBuildingForm.length2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, length2: value }))} />
+                    <NumberField label={t(locale, "architecture.width2")} value={twoBuildingForm.width2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, width2: value }))} />
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <NumberField label="Your total area answer (m²)" value={twoBuildingForm.learnerTotalAreaAnswer} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, learnerTotalAreaAnswer: value }))} />
-                  <NumberField label="Your total wall-length answer (m)" value={twoBuildingForm.learnerTotalWallLengthAnswer} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, learnerTotalWallLengthAnswer: value }))} />
+                  <NumberField label={t(locale, "architecture.yourTotalAreaAnswer")} value={twoBuildingForm.learnerTotalAreaAnswer} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, learnerTotalAreaAnswer: value }))} />
+                  <NumberField label={t(locale, "architecture.yourTotalWallLengthAnswer")} value={twoBuildingForm.learnerTotalWallLengthAnswer} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, learnerTotalWallLengthAnswer: value }))} />
                 </div>
               </div>
             ) : null}
 
             {architectureId === "l-shaped" ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <NumberField label="x position (m)" value={lShapedForm.x} onChange={(value) => setLShapedForm((current) => ({ ...current, x: value }))} />
-                <NumberField label="y position (m)" value={lShapedForm.y} onChange={(value) => setLShapedForm((current) => ({ ...current, y: value }))} />
-                <NumberField label="Outer length (m)" value={lShapedForm.outerLength} onChange={(value) => setLShapedForm((current) => ({ ...current, outerLength: value }))} />
-                <NumberField label="Outer width (m)" value={lShapedForm.outerWidth} onChange={(value) => setLShapedForm((current) => ({ ...current, outerWidth: value }))} />
-                <NumberField label="Cutout length (m)" value={lShapedForm.cutoutLength} onChange={(value) => setLShapedForm((current) => ({ ...current, cutoutLength: value }))} />
-                <NumberField label="Cutout width (m)" value={lShapedForm.cutoutWidth} onChange={(value) => setLShapedForm((current) => ({ ...current, cutoutWidth: value }))} />
-                <NumberField label="Your indoor area answer (m²)" value={lShapedForm.learnerIndoorAreaAnswer} onChange={(value) => setLShapedForm((current) => ({ ...current, learnerIndoorAreaAnswer: value }))} />
-                <NumberField label="Your wall-length answer (m)" value={lShapedForm.learnerWallLengthAnswer} onChange={(value) => setLShapedForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
+                <NumberField label={t(locale, "architecture.xPosition")} value={lShapedForm.x} onChange={(value) => setLShapedForm((current) => ({ ...current, x: value }))} />
+                <NumberField label={t(locale, "architecture.yPosition")} value={lShapedForm.y} onChange={(value) => setLShapedForm((current) => ({ ...current, y: value }))} />
+                <NumberField label={t(locale, "architecture.outerLength")} value={lShapedForm.outerLength} onChange={(value) => setLShapedForm((current) => ({ ...current, outerLength: value }))} />
+                <NumberField label={t(locale, "architecture.outerWidth")} value={lShapedForm.outerWidth} onChange={(value) => setLShapedForm((current) => ({ ...current, outerWidth: value }))} />
+                <NumberField label={t(locale, "architecture.cutoutLength")} value={lShapedForm.cutoutLength} onChange={(value) => setLShapedForm((current) => ({ ...current, cutoutLength: value }))} />
+                <NumberField label={t(locale, "architecture.cutoutWidth")} value={lShapedForm.cutoutWidth} onChange={(value) => setLShapedForm((current) => ({ ...current, cutoutWidth: value }))} />
+                <NumberField label={t(locale, "architecture.yourIndoorAreaAnswer")} value={lShapedForm.learnerIndoorAreaAnswer} onChange={(value) => setLShapedForm((current) => ({ ...current, learnerIndoorAreaAnswer: value }))} />
+                <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={lShapedForm.learnerWallLengthAnswer} onChange={(value) => setLShapedForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
               </div>
             ) : null}
 
@@ -476,10 +503,12 @@ export function ArchitectureComparisonPanel({
               }
               className="mt-4 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
             >
-              {architectureComparisonUiConfig.checkButtonLabel}
+              {t(locale, "architecture.checkButton")}
             </button>
 
-            {result?.checked ? <CheckedDesignSummary result={result} /> : null}
+            {result?.checked ? (
+              <CheckedDesignSummary locale={locale} result={result} />
+            ) : null}
           </article>
         );
       })}
@@ -487,22 +516,22 @@ export function ArchitectureComparisonPanel({
       {comparisonRows.length === 3 ? (
         <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
           <h3 className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
-            {architectureComparisonUiConfig.comparisonTableTitle}
+            {t(locale, "architecture.comparisonTableTitle")}
           </h3>
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-start text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Architecture</th>
-                <th className="px-4 py-3">Indoor area</th>
-                <th className="px-4 py-3">Wall length</th>
-                <th className="px-4 py-3">Floor qty</th>
-                <th className="px-4 py-3">Est. cost</th>
-                <th className="px-4 py-3">Cost eff.</th>
-                <th className="px-4 py-3">Comfort</th>
-                <th className="px-4 py-3">Creativity</th>
-                <th className="px-4 py-3">Access.</th>
-                <th className="px-4 py-3">Digital</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.architecture")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.indoorArea")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.wallLength")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.floorQty")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.estCost")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.costEff")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.comfort")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.creativity")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.access")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.digital")}</th>
+                <th className="px-4 py-3">{t(locale, "architecture.col.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -519,7 +548,9 @@ export function ArchitectureComparisonPanel({
                   <td className="px-4 py-3">{row.accessibilityScore}</td>
                   <td className="px-4 py-3">{row.digitalLearningFitScore}</td>
                   <td className="px-4 py-3">
-                    {row.isValid ? "Valid" : "Invalid"}
+                    {row.isValid
+                      ? t(locale, "architecture.statusValid")
+                      : t(locale, "architecture.statusInvalid")}
                   </td>
                 </tr>
               ))}
@@ -538,8 +569,7 @@ export function ArchitectureComparisonPanel({
             </div>
           ) : null}
           <p className="border-t border-slate-200 px-4 py-3 text-xs text-slate-600">
-            Compare the values yourself. The app does not choose the best design for
-            you.
+            {t(locale, "architecture.compareYourself")}
           </p>
         </div>
       ) : null}
@@ -547,10 +577,10 @@ export function ArchitectureComparisonPanel({
       {canSelectFinal ? (
         <div className="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4">
           <h3 className="text-sm font-semibold text-sky-950">
-            {architectureComparisonUiConfig.finalSelectionTitle}
+            {t(locale, "architecture.finalSelectionTitle")}
           </h3>
           <p className="mt-1 text-sm text-sky-900">
-            {architectureComparisonUiConfig.finalSelectionHint}
+            {t(locale, "architecture.finalSelectionHint")}
           </p>
           <div className="mt-4 flex flex-col gap-2">
             {comparisonRows
@@ -571,7 +601,10 @@ export function ArchitectureComparisonPanel({
                       : "bg-white text-sky-900 ring-1 ring-sky-300 hover:bg-sky-100"
                   }`}
                 >
-                  Select {row.architectureName}
+                  {t(locale, "architecture.selectDesign").replace(
+                    "{name}",
+                    row.architectureName,
+                  )}
                 </button>
               ))}
           </div>
@@ -581,32 +614,34 @@ export function ArchitectureComparisonPanel({
       {bonusUnlocked ? (
         <article className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <h3 className="text-base font-semibold text-amber-950">
-            {architectureComparisonUiConfig.bonusSectionTitle}
+            {t(locale, "architecture.bonusTitle")}
           </h3>
           <p className="mt-1 text-sm text-amber-900">
-            {architectureComparisonUiConfig.bonusSectionDescription}
+            {t(locale, "architecture.bonusDescription")}
           </p>
           <p className="mt-2 text-xs italic text-amber-800">
-            {architectureComparisonUiConfig.circularNote}
+            {t(locale, "architecture.circularNote")}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <NumberField label="x position (m)" value={courtyardForm.x} onChange={(value) => setCourtyardForm((current) => ({ ...current, x: value }))} />
-            <NumberField label="y position (m)" value={courtyardForm.y} onChange={(value) => setCourtyardForm((current) => ({ ...current, y: value }))} />
-            <NumberField label="Outer length (m)" value={courtyardForm.outerLength} onChange={(value) => setCourtyardForm((current) => ({ ...current, outerLength: value }))} />
-            <NumberField label="Outer width (m)" value={courtyardForm.outerWidth} onChange={(value) => setCourtyardForm((current) => ({ ...current, outerWidth: value }))} />
-            <NumberField label="Courtyard length (m)" value={courtyardForm.courtyardLength} onChange={(value) => setCourtyardForm((current) => ({ ...current, courtyardLength: value }))} />
-            <NumberField label="Courtyard width (m)" value={courtyardForm.courtyardWidth} onChange={(value) => setCourtyardForm((current) => ({ ...current, courtyardWidth: value }))} />
-            <NumberField label="Your indoor area answer (m²)" value={courtyardForm.learnerIndoorAreaAnswer} onChange={(value) => setCourtyardForm((current) => ({ ...current, learnerIndoorAreaAnswer: value }))} />
-            <NumberField label="Your wall-length answer (m)" value={courtyardForm.learnerWallLengthAnswer} onChange={(value) => setCourtyardForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
+            <NumberField label={t(locale, "architecture.xPosition")} value={courtyardForm.x} onChange={(value) => setCourtyardForm((current) => ({ ...current, x: value }))} />
+            <NumberField label={t(locale, "architecture.yPosition")} value={courtyardForm.y} onChange={(value) => setCourtyardForm((current) => ({ ...current, y: value }))} />
+            <NumberField label={t(locale, "architecture.outerLength")} value={courtyardForm.outerLength} onChange={(value) => setCourtyardForm((current) => ({ ...current, outerLength: value }))} />
+            <NumberField label={t(locale, "architecture.outerWidth")} value={courtyardForm.outerWidth} onChange={(value) => setCourtyardForm((current) => ({ ...current, outerWidth: value }))} />
+            <NumberField label={t(locale, "architecture.courtyardLength")} value={courtyardForm.courtyardLength} onChange={(value) => setCourtyardForm((current) => ({ ...current, courtyardLength: value }))} />
+            <NumberField label={t(locale, "architecture.courtyardWidth")} value={courtyardForm.courtyardWidth} onChange={(value) => setCourtyardForm((current) => ({ ...current, courtyardWidth: value }))} />
+            <NumberField label={t(locale, "architecture.yourIndoorAreaAnswer")} value={courtyardForm.learnerIndoorAreaAnswer} onChange={(value) => setCourtyardForm((current) => ({ ...current, learnerIndoorAreaAnswer: value }))} />
+            <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={courtyardForm.learnerWallLengthAnswer} onChange={(value) => setCourtyardForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
           </div>
           <button
             type="button"
             onClick={handleCheckCourtyard}
             className="mt-4 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800"
           >
-            Check bonus courtyard design
+            {t(locale, "architecture.checkBonus")}
           </button>
-          {bonusResult?.checked ? <CheckedDesignSummary result={bonusResult} /> : null}
+          {bonusResult?.checked ? (
+            <CheckedDesignSummary locale={locale} result={bonusResult} />
+          ) : null}
         </article>
       ) : null}
     </section>

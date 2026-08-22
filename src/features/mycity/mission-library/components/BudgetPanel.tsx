@@ -2,15 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { libraryBudgetConfig } from "@/features/mycity/mission-library/data/budgetConfig";
+import { t, type I18nKey, type Locale } from "@/features/mycity/mission-library/data/i18n";
 import {
   getStoreItemsByBudgetScope,
   storeCatalog,
 } from "@/features/mycity/mission-library/data/storeCatalog";
 import {
-  budgetUiConfig,
   constructionCategoryDisplay,
   libraryItemsCategoryDisplay,
-  storeUnitLabels,
 } from "@/features/mycity/mission-library/data/storeConfig";
 import {
   calculateBudgetScopeCost,
@@ -32,9 +31,37 @@ import type {
   ScopedPurchaseValidationResult,
   SelectedStoreItem,
   StoreCategory,
+  StoreUnit,
 } from "@/features/mycity/mission-library/types/missionTypes";
 
+const CATEGORY_I18N_KEYS: Record<StoreCategory, I18nKey> = {
+  construction: "budget.category.walls",
+  floor: "budget.category.floor",
+  access: "budget.category.access",
+  electrical: "budget.category.electrical",
+  reading: "budget.category.reading",
+  digital: "budget.category.digital",
+  inclusion: "budget.category.inclusion",
+  enrichment: "budget.category.enrichment",
+};
+
+const UNIT_I18N_KEYS: Record<StoreUnit, I18nKey> = {
+  m: "store.unit.m",
+  m2: "store.unit.m2",
+  each: "store.unit.each",
+};
+
+function fillTemplate(
+  template: string,
+  vars: Record<string, string | number>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (_, name: string) =>
+    vars[name] === undefined ? `{${name}}` : String(vars[name]),
+  );
+}
+
 interface BudgetPanelProps {
+  locale: Locale;
   finalArchitecture: ArchitectureDesignResult | null;
   onConstructionChange: (
     result: ScopedPurchaseValidationResult | null,
@@ -47,6 +74,7 @@ interface BudgetPanelProps {
 }
 
 function StoreSection({
+  locale,
   title,
   description,
   budgetLimit,
@@ -58,6 +86,7 @@ function StoreSection({
   submitLabel,
   validation,
 }: {
+  locale: Locale;
   title: string;
   description: string;
   budgetLimit: number;
@@ -89,10 +118,11 @@ function StoreSection({
     return categories
       .map((category) => ({
         ...category,
+        label: t(locale, CATEGORY_I18N_KEYS[category.id]),
         items: scopedItems.filter((item) => item.category === category.id),
       }))
       .filter((category) => category.items.length > 0);
-  }, [budgetScope, categories]);
+  }, [budgetScope, categories, locale]);
 
   return (
     <section className="rounded-xl border border-slate-200 p-4">
@@ -101,13 +131,13 @@ function StoreSection({
 
       <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
         <div className="rounded-lg bg-slate-50 p-3">
-          <dt className="text-slate-500">Budget</dt>
+          <dt className="text-slate-500">{t(locale, "budget.budget")}</dt>
           <dd className="font-semibold">
             {budgetLimit} {libraryBudgetConfig.currencyLabel}
           </dd>
         </div>
         <div className="rounded-lg bg-slate-50 p-3">
-          <dt className="text-slate-500">Selected total</dt>
+          <dt className="text-slate-500">{t(locale, "budget.selectedTotal")}</dt>
           <dd
             className={`font-semibold ${
               totalCost > budgetLimit ? "text-rose-700" : "text-slate-900"
@@ -117,7 +147,7 @@ function StoreSection({
           </dd>
         </div>
         <div className="rounded-lg bg-slate-50 p-3">
-          <dt className="text-slate-500">Remaining</dt>
+          <dt className="text-slate-500">{t(locale, "budget.remaining")}</dt>
           <dd
             className={`font-semibold ${
               remainingBudget < 0 ? "text-rose-700" : "text-emerald-700"
@@ -144,12 +174,17 @@ function StoreSection({
                     <div>
                       <h5 className="font-medium text-slate-900">{item.label}</h5>
                       <p className="mt-1 text-xs text-slate-500">
-                        {item.unitPrice} {libraryBudgetConfig.currencyLabel} per{" "}
-                        {storeUnitLabels[item.unit]}
+                        {fillTemplate(t(locale, "budget.pricePerUnit"), {
+                          price: item.unitPrice,
+                          currency: libraryBudgetConfig.currencyLabel,
+                          unit: t(locale, UNIT_I18N_KEYS[item.unit]),
+                        })}
                       </p>
                     </div>
                     <label className="flex items-center gap-2 text-sm">
-                      <span className="text-slate-600">Qty</span>
+                      <span className="text-slate-600">
+                        {t(locale, "budget.qty")}
+                      </span>
                       <input
                         type="number"
                         min={0}
@@ -161,7 +196,7 @@ function StoreSection({
                         className="w-24 rounded-lg border border-slate-300 px-3 py-2"
                       />
                       <span className="text-slate-500">
-                        {storeUnitLabels[item.unit]}
+                        {t(locale, UNIT_I18N_KEYS[item.unit])}
                       </span>
                     </label>
                   </div>
@@ -180,7 +215,8 @@ function StoreSection({
               className="flex justify-between gap-3 border-b border-slate-200 pb-2"
             >
               <span>
-                {line.label} · {line.quantity} {storeUnitLabels[line.unit]}
+                {line.label} · {line.quantity}{" "}
+                {t(locale, UNIT_I18N_KEYS[line.unit])}
               </span>
               <span className="font-medium">
                 {line.lineCost} {libraryBudgetConfig.currencyLabel}
@@ -207,16 +243,16 @@ function StoreSection({
           }`}
         >
           {validation.isValid ? (
-            <p className="font-semibold">Order valid for this budget.</p>
+            <p className="font-semibold">{t(locale, "budget.orderValid")}</p>
           ) : (
-            <ul className="list-disc space-y-1 pl-5">
+            <ul className="list-disc space-y-1 ps-5">
               {validation.errors.map((error) => (
                 <li key={error}>{error}</li>
               ))}
             </ul>
           )}
           {validation.warnings.length > 0 ? (
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-amber-900">
+            <ul className="mt-3 list-disc space-y-1 ps-5 text-amber-900">
               {validation.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
@@ -224,9 +260,11 @@ function StoreSection({
           ) : null}
           {budgetScope === "library-items" ? (
             <p className="mt-3 text-xs">
-              Reading resources: {validation.readingResourcesSelected} · Digital
-              resources: {validation.digitalResourcesSelected} · Inclusion
-              resources: {validation.inclusionResourcesSelected}
+              {fillTemplate(t(locale, "budget.resourceCounts"), {
+                reading: validation.readingResourcesSelected,
+                digital: validation.digitalResourcesSelected,
+                inclusion: validation.inclusionResourcesSelected,
+              })}
             </p>
           ) : null}
         </div>
@@ -236,6 +274,7 @@ function StoreSection({
 }
 
 export function BudgetPanel({
+  locale,
   finalArchitecture,
   onConstructionChange,
   onLibraryItemsChange,
@@ -285,7 +324,7 @@ export function BudgetPanel({
   if (!finalArchitecture?.isValid) {
     return (
       <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
-        {budgetUiConfig.blockedMessage}
+        {t(locale, "budget.blockedMessage")}
       </section>
     );
   }
@@ -293,40 +332,45 @@ export function BudgetPanel({
   return (
     <section className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">Mission budgets</h2>
+        <h2 className="text-lg font-semibold text-slate-900">
+          {t(locale, "budget.sectionTitle")}
+        </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Construction budget ({libraryBudgetConfig.constructionBudget}{" "}
-          {libraryBudgetConfig.currencyLabel}) and library-items budget (
-          {libraryBudgetConfig.libraryItemsBudget}{" "}
-          {libraryBudgetConfig.currencyLabel}) are separate. Choose quantities
-          manually for the final architecture: {finalArchitecture.wallLength} m
-          walls and {finalArchitecture.floorQuantity} m² floor.
+          {fillTemplate(t(locale, "budget.storeExplanation"), {
+            constructionBudget: libraryBudgetConfig.constructionBudget,
+            libraryItemsBudget: libraryBudgetConfig.libraryItemsBudget,
+            currency: libraryBudgetConfig.currencyLabel,
+            wallLength: finalArchitecture.wallLength,
+            floorQuantity: finalArchitecture.floorQuantity,
+          })}
         </p>
       </div>
 
       <StoreSection
-        title={budgetUiConfig.constructionTitle}
-        description={budgetUiConfig.constructionDescription}
+        locale={locale}
+        title={t(locale, "budget.constructionTitle")}
+        description={t(locale, "budget.constructionDescription")}
         budgetLimit={libraryBudgetConfig.constructionBudget}
         budgetScope="construction"
         categories={constructionCategoryDisplay}
         quantities={quantities}
         onQuantityChange={updateQuantity}
         onSubmit={handleConstructionSubmit}
-        submitLabel={budgetUiConfig.constructionSubmitLabel}
+        submitLabel={t(locale, "budget.constructionSubmit")}
         validation={constructionValidation}
       />
 
       <StoreSection
-        title={budgetUiConfig.libraryItemsTitle}
-        description={budgetUiConfig.libraryItemsDescription}
+        locale={locale}
+        title={t(locale, "budget.libraryItemsTitle")}
+        description={t(locale, "budget.libraryItemsDescription")}
         budgetLimit={libraryBudgetConfig.libraryItemsBudget}
         budgetScope="library-items"
         categories={libraryItemsCategoryDisplay}
         quantities={quantities}
         onQuantityChange={updateQuantity}
         onSubmit={handleLibraryItemsSubmit}
-        submitLabel={budgetUiConfig.libraryItemsSubmitLabel}
+        submitLabel={t(locale, "budget.libraryItemsSubmit")}
         validation={libraryValidation}
       />
     </section>

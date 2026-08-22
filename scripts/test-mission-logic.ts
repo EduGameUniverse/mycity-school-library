@@ -8,6 +8,7 @@ import { libraryBudgetConfig } from "@/features/mycity/mission-library/data/budg
 import { elBahdjaCampusMap } from "@/features/mycity/mission-library/data/mapConfig";
 import { libraryScoringConfig } from "@/features/mycity/mission-library/data/scoringConfig";
 import { emptyGuidedReportAnswers } from "@/features/mycity/mission-library/data/reportConfig";
+import { t } from "@/features/mycity/mission-library/data/i18n";
 import {
   canUnlockBonusChallenge,
   validateCompactRectangleDesign,
@@ -348,6 +349,56 @@ logResult(
   "Report blocked if required trilingual fields are empty",
   !emptyReport.isValid && !blockedReportReadiness.ready,
   `reportValid=${emptyReport.isValid}, ready=${blockedReportReadiness.ready}`,
+);
+
+const missingEnglishReport = validateGuidedReportAnswers({
+  ...fillReportAnswers(),
+  english: { ...emptyGuidedReportAnswers.english },
+});
+logResult(
+  "Missing English report fields fail validation",
+  !missingEnglishReport.isValid,
+  missingEnglishReport.errors.join("; "),
+);
+
+const missingFrenchReport = validateGuidedReportAnswers({
+  ...fillReportAnswers(),
+  french: { ...emptyGuidedReportAnswers.french },
+});
+logResult(
+  "Missing French report fields fail validation",
+  !missingFrenchReport.isValid,
+  missingFrenchReport.errors.join("; "),
+);
+
+const missingArabicReport = validateGuidedReportAnswers({
+  ...fillReportAnswers(),
+  arabic: { ...emptyGuidedReportAnswers.arabic },
+});
+logResult(
+  "Missing Arabic report fields fail validation",
+  !missingArabicReport.isValid,
+  missingArabicReport.errors.join("; "),
+);
+
+logResult(
+  "Mission title translates to English",
+  t("en", "mission.title") ===
+    "MyCity Mission 1 — Build the El-Bahdja School Library",
+  t("en", "mission.title"),
+);
+
+logResult(
+  "Mission title translates to French",
+  t("fr", "mission.title") ===
+    "MyCity Mission 1 — Construire la bibliothèque de l'école El-Bahdja",
+  t("fr", "mission.title"),
+);
+
+logResult(
+  "Mission title translates to Arabic",
+  t("ar", "mission.title") === "ماي سيتي المهمة 1 — بناء مكتبة مدرسة البهجة",
+  t("ar", "mission.title"),
 );
 
 const projectionConfig = getPlotProjectionConfig(elBahdjaCampusMap.plot);
