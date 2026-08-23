@@ -31,13 +31,18 @@ export default function Home() {
               </div>
             </Link>
           </li>
-          <li className="rounded-2xl border border-slate-200 bg-slate-100 p-5 text-slate-500">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-600">BAC</h2>
-              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Coming soon
-              </span>
-            </div>
+          <li>
+            <Link
+              href="/bac"
+              className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900">BAC</h2>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                  Available
+                </span>
+              </div>
+            </Link>
           </li>
           <li className="rounded-2xl border border-slate-200 bg-slate-100 p-5 text-slate-500">
             <div className="flex flex-wrap items-center justify-between gap-3">
