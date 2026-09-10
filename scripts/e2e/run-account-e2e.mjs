@@ -35,6 +35,8 @@ const PAYLOAD_KEYS = [
   "lShaped",
   "finalArchitectureId",
   "storeSelections",
+  "constructionOrderChecked",
+  "libraryItemsOrderChecked",
   "reportAnswers",
   "completed",
 ];
@@ -140,6 +142,77 @@ async function inspectPlotAndAnswerGeometry(page, { area = "216", perimeter = "6
   await page.fill('input[name="plot-area"]', area);
   await page.fill('input[name="plot-perimeter"]', perimeter);
   await page.getByRole("button", { name: "Check my answers" }).click();
+}
+
+/** Fill and check the three required designs with known-valid inputs, then pick the compact final. */
+async function completeArchitecturesAndSelectCompact(page) {
+  const compact = page.locator("article", { hasText: "Compact Rectangle Library" });
+  for (const [label, value] of [
+    ["A′ x (m)", "1"],
+    ["A′ y (m)", "1"],
+    ["B′ x (m)", "17"],
+    ["B′ y (m)", "1"],
+    ["C′ x (m)", "17"],
+    ["C′ y (m)", "11"],
+    ["D′ x (m)", "1"],
+    ["D′ y (m)", "11"],
+    ["Your area answer (m²)", "160"],
+    ["Your wall-length answer (m)", "52"],
+  ]) {
+    await compact.getByLabel(label, { exact: true }).fill(value);
+  }
+  await compact.getByRole("button", { name: "Check this design" }).click();
+
+  const twoBuilding = page.locator("article", { hasText: "Two-Building Library" });
+  for (const [label, value] of [
+    ["Length 1", "10"],
+    ["Width 1", "8"],
+    ["x2", "10"],
+    ["y2", "0"],
+    ["Length 2", "8"],
+    ["Width 2", "8"],
+    ["Your total area answer (m²)", "144"],
+    ["Your total wall-length answer (m)", "68"],
+  ]) {
+    await twoBuilding.getByLabel(label, { exact: true }).fill(value);
+  }
+  await twoBuilding.getByRole("button", { name: "Check this design" }).click();
+
+  const lShaped = page.locator("article", { hasText: "L-Shaped Library" });
+  for (const [label, value] of [
+    ["Outer length (m)", "18"],
+    ["Outer width (m)", "12"],
+    ["Cutout length (m)", "6"],
+    ["Cutout width (m)", "6"],
+    ["Your indoor area answer (m²)", "180"],
+    ["Your wall-length answer (m)", "60"],
+  ]) {
+    await lShaped.getByLabel(label, { exact: true }).fill(value);
+  }
+  await lShaped.getByRole("button", { name: "Check this design" }).click();
+
+  await page.getByRole("button", { name: "Select Compact Rectangle Library" }).click();
+  await page.waitForSelector("text=Construction Store");
+}
+
+const COMPACT_CONSTRUCTION_ORDER = [
+  ["Eco wall block", "52"],
+  ["Standard floor", "160"],
+  ["Standard door", "1"],
+  ["Window", "4"],
+  ["LED light", "6"],
+  ["Ventilation unit", "1"],
+  ["Accessibility ramp", "1"],
+  ["Basic electrical setup", "1"],
+];
+
+function storeQuantityInput(page, itemLabel) {
+  return page.locator("article", { hasText: itemLabel }).getByRole("spinbutton");
+}
+
+async function requirementMark(page, label) {
+  const text = await page.locator("li", { hasText: label }).first().textContent();
+  return text.trim().charAt(0);
 }
 
 function completedPayloadFixture() {
@@ -399,6 +472,77 @@ async function main() {
       assert.deepEqual(consoleErrors, []);
     });
     await context.close();
+
+    // ----------------------------------------------------------------------
+    // Store validation intent: quantities alone never restore as validated;
+    // an explicit "Check construction order" does; editing resets it.
+    // ----------------------------------------------------------------------
+    await scenario("store intent: valid quantities without 'Check construction order' restore as not validated", async () => {
+      const contextS = await browser.newContext();
+      const pageS = await contextS.newPage();
+      await pageS.goto(MISSION_URL);
+      await waitForIdentity(pageS, "unauthenticated");
+      await inspectPlotAndAnswerGeometry(pageS);
+      await completeArchitecturesAndSelectCompact(pageS);
+      for (const [label, quantity] of COMPACT_CONSTRUCTION_ORDER) {
+        await storeQuantityInput(pageS, label).fill(quantity);
+      }
+      const guest = await waitFor(
+        async () => {
+          const record = await readGuest(pageS);
+          return record?.payload?.storeSelections?.length === COMPACT_CONSTRUCTION_ORDER.length ? record : null;
+        },
+        { label: "guest store selections" },
+      );
+      assert.equal(guest.payload.finalArchitectureId, "compact-rectangle");
+      assert.equal(guest.payload.constructionOrderChecked, false);
+      assert.equal(guest.payload.libraryItemsOrderChecked, false);
+      assert.equal(await pageS.locator("text=Order valid for this budget.").count(), 0);
+      assert.equal(await requirementMark(pageS, "Construction order within 2500 EduCoins"), "○");
+
+      await pageS.reload();
+      await waitForStatus(pageS, "guest_retained");
+      await pageS.waitForSelector("text=Construction Store");
+      assert.equal(await storeQuantityInput(pageS, "Eco wall block").inputValue(), "52");
+      assert.equal(await storeQuantityInput(pageS, "Standard floor").inputValue(), "160");
+      await sleep(500);
+      assert.equal(await pageS.locator("text=Order valid for this budget.").count(), 0, "refresh must not validate");
+      assert.equal(await requirementMark(pageS, "Construction order within 2500 EduCoins"), "○");
+      assert.equal((await readGuest(pageS)).payload.constructionOrderChecked, false);
+
+      // Explicit check → validated, persisted as intent, restored as validated.
+      await pageS.getByRole("button", { name: "Check construction order" }).click();
+      await pageS.waitForSelector("text=Order valid for this budget.");
+      assert.equal(await requirementMark(pageS, "Construction order within 2500 EduCoins"), "✓");
+      await waitFor(async () => (await readGuest(pageS)).payload.constructionOrderChecked === true, {
+        label: "constructionOrderChecked persisted",
+      });
+      await pageS.reload();
+      await waitForStatus(pageS, "guest_retained");
+      await pageS.waitForSelector("text=Order valid for this budget.");
+      assert.equal(await requirementMark(pageS, "Construction order within 2500 EduCoins"), "✓");
+      assert.equal((await readGuest(pageS)).payload.constructionOrderChecked, true);
+      assert.equal((await readGuest(pageS)).payload.libraryItemsOrderChecked, false);
+
+      // Editing a quantity after the check requires a re-check (existing UX) → intent resets.
+      await storeQuantityInput(pageS, "Window").fill("5");
+      await waitFor(async () => (await pageS.locator("text=Order valid for this budget.").count()) === 0, {
+        label: "validation cleared after quantity edit",
+      });
+      assert.equal(await requirementMark(pageS, "Construction order within 2500 EduCoins"), "○");
+      await waitFor(async () => (await readGuest(pageS)).payload.constructionOrderChecked === false, {
+        label: "constructionOrderChecked reset",
+      });
+      await pageS.reload();
+      await waitForStatus(pageS, "guest_retained");
+      await pageS.waitForSelector("text=Construction Store");
+      assert.equal(await storeQuantityInput(pageS, "Window").inputValue(), "5");
+      await sleep(500);
+      assert.equal(await pageS.locator("text=Order valid for this budget.").count(), 0);
+      assert.equal(await requirementMark(pageS, "Construction order within 2500 EduCoins"), "○");
+      assert.equal(progressCalls(await mockState()).filter((c) => c.sessionUser === null).length, 0);
+      await contextS.close();
+    });
 
     // ----------------------------------------------------------------------
     // Completed account row: restore shows the built library; a local edit

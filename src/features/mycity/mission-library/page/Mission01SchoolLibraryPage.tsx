@@ -171,6 +171,10 @@ export function Mission01SchoolLibraryPage() {
     lShapedChecked: Boolean(comparisonResults["l-shaped"]?.checked),
     finalArchitectureId,
     quantities,
+    /* Intent evidence: a result object exists only after the learner's own
+       "Check … order" click; quantity edits and final re-selection clear it. */
+    constructionOrderChecked: constructionPurchase !== null,
+    libraryItemsOrderChecked: libraryItemsPurchase !== null,
     reportAnswers,
     completed: isBuilt && readiness.ready,
   });

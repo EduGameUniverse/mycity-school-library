@@ -87,6 +87,8 @@ describe("payload normalization and validation", () => {
       lShapedChecked: false,
       finalArchitectureId: null,
       quantities: {},
+      constructionOrderChecked: false,
+      libraryItemsOrderChecked: false,
       reportAnswers: emptyLibraryProgress().reportAnswers,
       completed: false,
     });
@@ -116,6 +118,33 @@ describe("payload normalization and validation", () => {
     const { completed: _completed, ...missingCompleted } = base;
     void _completed;
     assert.equal(parseLibraryProgressV1(missingCompleted), null);
+  });
+
+  it("requires both Store validation-intent flags as booleans (pre-B2 shapes are rejected)", () => {
+    const base = JSON.parse(JSON.stringify(midMissionPayload())) as Record<string, unknown>;
+    assert.equal(base.constructionOrderChecked, false);
+    assert.equal(base.libraryItemsOrderChecked, false);
+    assert.ok(parseLibraryProgressV1(base));
+    assert.equal(parseLibraryProgressV1({ ...base, constructionOrderChecked: "true" }), null);
+    assert.equal(parseLibraryProgressV1({ ...base, libraryItemsOrderChecked: 1 }), null);
+    assert.equal(parseLibraryProgressV1({ ...base, constructionOrderChecked: null }), null);
+    const { constructionOrderChecked: _c, ...missingConstruction } = base;
+    void _c;
+    assert.equal(parseLibraryProgressV1(missingConstruction), null);
+    const { libraryItemsOrderChecked: _l, ...missingLibrary } = base;
+    void _l;
+    assert.equal(parseLibraryProgressV1(missingLibrary), null);
+    // Flags are not derived from selections: valid quantities with checked:false stay unchecked.
+    const parsed = parseLibraryProgressV1({
+      ...JSON.parse(JSON.stringify(completedLibraryPayload())),
+      constructionOrderChecked: false,
+      libraryItemsOrderChecked: false,
+      completed: false,
+    });
+    assert.ok(parsed);
+    assert.equal(parsed.storeSelections.length, 12);
+    assert.equal(parsed.constructionOrderChecked, false);
+    assert.equal(parsed.libraryItemsOrderChecked, false);
   });
 
   it("rejects malformed architecture progress and store selections", () => {
@@ -186,6 +215,8 @@ describe("payload normalization and validation", () => {
     const reordered = {
       completed: rightJson.completed,
       reportAnswers: rightJson.reportAnswers,
+      libraryItemsOrderChecked: rightJson.libraryItemsOrderChecked,
+      constructionOrderChecked: rightJson.constructionOrderChecked,
       storeSelections: [...rightJson.storeSelections].reverse(),
       finalArchitectureId: rightJson.finalArchitectureId,
       lShaped: rightJson.lShaped,
@@ -200,6 +231,8 @@ describe("payload normalization and validation", () => {
       false,
     );
     assert.equal(payloadsEquivalent(left, { ...left, completed: false }), false);
+    assert.equal(payloadsEquivalent(left, { ...left, constructionOrderChecked: false }), false);
+    assert.equal(payloadsEquivalent(left, { ...left, libraryItemsOrderChecked: false }), false);
   });
 
   it("treats only the untouched initial state as not meaningful", () => {
@@ -380,6 +413,7 @@ describe("report answer bounds (UTF-8 bytes)", () => {
     }
     const bytes = payloadUtf8Bytes(maximal);
     assert.ok(bytes <= PAYLOAD_MAX_UTF8_BYTES, `maximal payload is ${bytes} bytes`);
+    assert.ok(bytes <= 13_500, `worst case must stay near the documented 13.2 KB (${bytes})`);
     assert.ok(bytes > 9600, "maximal payload includes the full report budget");
     assert.equal(payloadWithinPortalLimit(maximal), true);
     assert.ok(parseLibraryProgressV1(JSON.parse(JSON.stringify(maximal))));

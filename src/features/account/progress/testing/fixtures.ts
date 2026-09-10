@@ -98,6 +98,8 @@ export function completedLibraryPayload(): MyCityLibraryProgressV1 {
       { itemId: "internet-router", quantity: 1 },
       { itemId: "adapted-reading-desk", quantity: 1 },
     ]),
+    constructionOrderChecked: true,
+    libraryItemsOrderChecked: true,
     reportAnswers: filledReportAnswers(),
     completed: true,
   });

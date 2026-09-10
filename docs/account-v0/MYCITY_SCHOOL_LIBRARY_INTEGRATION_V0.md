@@ -72,6 +72,8 @@ Source learner inputs only. Exact keys; unknown keys are rejected.
     { "itemId": "eco-wall-block", "quantity": 52 },
     { "itemId": "standard-floor", "quantity": 160 }
   ],
+  "constructionOrderChecked": true,
+  "libraryItemsOrderChecked": true,
   "reportAnswers": {
     "english": { "architectureChoice": "…", "areaComparison": "…", "wallLengthComparison": "…", "constructionCostComparison": "…", "libraryItemsBudgetUse": "…", "readingSupport": "…", "digitalLearningSupport": "…", "accessibilitySupport": "…" },
     "french": { "…8 fields…": "" },
@@ -89,6 +91,7 @@ Source learner inputs only. Exact keys; unknown keys are rejected.
 | `compact.checked`, `twoBuilding.checked`, `lShaped.checked` | boolean | whether the learner pressed "Check this design" |
 | `finalArchitectureId` | `"compact-rectangle" \| "two-building" \| "l-shaped" \| null` | the learner's final choice |
 | `storeSelections[]` | `{ itemId: catalog id, quantity: finite number > 0 and ≤ 1 000 000 }`, catalog order, no duplicates, max 23 entries | store quantities are the source of both budgets |
+| `constructionOrderChecked`, `libraryItemsOrderChecked` | boolean | learner explicitly pressed "Check construction order" / "Check library-items order" since the last quantity change or final-architecture selection (V0-08B2). Intent only; the purchase result is derived. `false` = quantities may exist but that order is not yet validated |
 | `reportAnswers` | 3 languages × 8 prompts, each string ≤ **400 UTF-8 bytes**; total ≤ **9 600 UTF-8 bytes** | 24 learner-written pedagogical answers needed for faithful restore and report regeneration |
 | `completed` | boolean, monotonic | learner activated Build Library with `getMissionReadiness().ready` |
 
@@ -104,9 +107,9 @@ EduCoins in this mission are budgets (2500 + 500), not a wallet.
 
 Measured with `payloadUtf8Bytes` (UTF-8 bytes of the canonical JSON):
 
-- complete reference mission: **3 171 bytes**
+- complete reference mission: **3 235 bytes**
 - worst case (all 24 answers at 400 bytes of Arabic, all 23 catalog items with
-  long quantities, every numeric field 32 chars): **13 145 bytes** — under the
+  long quantities, every numeric field 32 chars): **13 209 bytes** — under the
   Portal generic cap of 16 384 bytes with ~3 KiB headroom for JSON escaping.
 
 Per-answer clamp: 400 UTF-8 bytes ≈ 400 Latin or 200 Arabic characters
@@ -124,8 +127,14 @@ existing validators:
 - `finalArchitectureId` kept only if its re-validated design is valid; else
   cleared with its result (matches the live UX, which never shows an invalid
   final)
-- store quantities rebuilt from `storeSelections`; purchase validations derived
-  when that budget scope has selections and a valid final architecture exists
+- store quantities rebuilt from `storeSelections` exactly; a purchase result is
+  recomputed with the existing validator **only if** the matching
+  `…OrderChecked` flag is true and a valid final architecture exists. With the
+  flag false the order restores as not-yet-validated, exactly as before the
+  refresh, so a refresh can never promote Store readiness. In the live UX the
+  flag is the presence of the result object: it becomes true on the learner's
+  "Check … order" click and returns to false on any quantity change or a new
+  final selection (existing behaviour — no redesign)
 - `isBuilt = completed && readiness.ready`; score and trilingual summary
   recomputed with `buildCompletionArtifacts` (the same code the Build button
   uses)
@@ -167,7 +176,9 @@ the page state is reset (`resetHost`) and then B is hydrated.
 
 ## Tests
 
-- `npm run test:account` — 79 node tests: payload normalization/validation,
+- `npm run test:account` — 88 node tests: payload normalization/validation,
+  Store validation-intent restore (unchecked/checked/mixed, refresh cannot
+  promote readiness, completed row stays built),
   guest persistence/refresh/malformed rejection, fingerprint equality, no
   duplicate saves from unrelated renders, client-level guest→account migration
   (owner header, no body `userId`, existing row wins, duplicate migrate,
@@ -176,16 +187,19 @@ the page state is reset (`resetHost`) and then B is hydrated.
   EN/FR/AR with UUID LTR isolation.
 - `npm run test:account:e2e` — Playwright Chromium against
   `scripts/e2e/mock-portal.mjs`: guest refresh, migration, CAS save without
-  write storm, A→B same tab, RTL chrome, completed-row monotonicity.
+  write storm, A→B same tab, RTL chrome, Store intent (unchecked quantities
+  stay unvalidated across refresh; explicit check restores validated; a
+  quantity edit resets the intent), completed-row monotonicity.
 - `npm run test:mission-logic`, `npm run typecheck`, `npm run lint`,
   `npm run build`.
 
 ## Required for V0-08C (Portal, not done here)
 
 1. Allowlist `mycity` / `bem-mission-01-school-library`, `stateVersion` 1.
-2. Structural validator: exact keys above, numeric-source regex and 32-char
-   limit, catalog `itemId` set, quantity range, report answers ≤ 400 bytes each
-   and ≤ 9 600 total, forbidden keys, generic 16 384-byte cap.
+2. Structural validator: exact keys above (11 closed keys including the two
+   boolean `…OrderChecked` flags), numeric-source regex and 32-char limit,
+   catalog `itemId` set, quantity range, report answers ≤ 400 bytes each and
+   ≤ 9 600 total, forbidden keys, generic 16 384-byte cap.
 3. Monotonic `completed` through the existing `progress_regression` rule.
    Do **not** re-derive mission readiness from source inputs on the Portal:
    after completion the learner may edit inputs while the row stays

@@ -114,12 +114,18 @@ export function deriveMissionState(payload: MyCityLibraryProgressV1): DerivedMis
   const constructionSelections = filterSelectionsByBudgetScope(selections, "construction");
   const librarySelections = filterSelectionsByBudgetScope(selections, "library-items");
 
+  /* A purchase result exists only if the learner explicitly pressed the matching
+   * "Check … order" action (and nothing invalidated it since). Restore therefore
+   * recomputes a result only when that intent was persisted; otherwise the order
+   * stays not-yet-validated exactly as before the refresh. Quantities alone never
+   * promote readiness.
+   */
   const constructionPurchase =
-    finalArchitecture && constructionSelections.length > 0
+    finalArchitecture && payload.constructionOrderChecked
       ? validateConstructionPurchase(selections, finalArchitecture.construction)
       : null;
   const libraryItemsPurchase =
-    finalArchitecture && librarySelections.length > 0
+    finalArchitecture && payload.libraryItemsOrderChecked
       ? validateLibraryItemsPurchase(selections)
       : null;
 

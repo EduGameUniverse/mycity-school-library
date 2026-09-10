@@ -83,11 +83,78 @@ describe("restore derivation from source inputs", () => {
     assert.equal(derived.missionScore, null);
   });
 
-  it("store validations are derived only when there is something to validate", () => {
-    const derived = deriveMissionState({ ...completedLibraryPayload(), storeSelections: [] });
+  it("valid quantities with checked:false restore as not yet validated (refresh cannot promote Store readiness)", () => {
+    const payload = {
+      ...completedLibraryPayload(),
+      constructionOrderChecked: false,
+      libraryItemsOrderChecked: false,
+      completed: false,
+    };
+    const derived = deriveMissionState(payload);
+    assert.equal(derived.quantities["eco-wall-block"], 52, "quantities restore exactly");
+    assert.equal(derived.quantities.laptop, 1);
+    assert.equal(derived.finalArchitecture?.isValid, true);
     assert.equal(derived.constructionPurchase, null);
     assert.equal(derived.libraryItemsPurchase, null);
     assert.equal(derived.readiness.ready, false);
+    assert.ok(
+      derived.readiness.missingSteps.includes("Construction order within 2500 EduCoins"),
+    );
+    assert.ok(derived.readiness.missingSteps.includes("Library items within 500 EduCoins"));
+    assert.equal(derived.isBuilt, false);
+  });
+
+  it("valid quantities with checked:true restore as validated through the existing validators", () => {
+    const payload = { ...completedLibraryPayload(), completed: false };
+    const derived = deriveMissionState(payload);
+    assert.equal(derived.constructionPurchase?.isValid, true);
+    assert.equal(derived.constructionPurchase?.totalCost, 1321);
+    assert.equal(derived.libraryItemsPurchase?.isValid, true);
+    assert.equal(derived.readiness.ready, true);
+    assert.equal(derived.isBuilt, false, "ready but never built stays unbuilt");
+  });
+
+  it("each Store scope restores its own intent independently", () => {
+    const payload = {
+      ...completedLibraryPayload(),
+      constructionOrderChecked: true,
+      libraryItemsOrderChecked: false,
+      completed: false,
+    };
+    const derived = deriveMissionState(payload);
+    assert.equal(derived.constructionPurchase?.isValid, true);
+    assert.equal(derived.libraryItemsPurchase, null);
+    assert.equal(derived.readiness.ready, false);
+  });
+
+  it("a checked order with invalid quantities restores as checked-and-invalid, not as unchecked", () => {
+    const payload = {
+      ...completedLibraryPayload(),
+      storeSelections: completedLibraryPayload().storeSelections.filter(
+        (selection) => selection.itemId !== "window",
+      ),
+      completed: false,
+    };
+    const derived = deriveMissionState(payload);
+    assert.ok(derived.constructionPurchase);
+    assert.equal(derived.constructionPurchase.isValid, false);
+    assert.equal(derived.readiness.ready, false);
+  });
+
+  it("checked intent without a valid final architecture cannot produce a purchase result", () => {
+    const payload = { ...completedLibraryPayload(), finalArchitectureId: null, completed: false };
+    const derived = deriveMissionState(payload);
+    assert.equal(derived.finalArchitecture, null);
+    assert.equal(derived.constructionPurchase, null);
+    assert.equal(derived.libraryItemsPurchase, null);
+  });
+
+  it("a hydrated completed account row remains completed and built", () => {
+    const derived = deriveMissionState(completedLibraryPayload());
+    assert.equal(derived.constructionPurchase?.isValid, true);
+    assert.equal(derived.libraryItemsPurchase?.isValid, true);
+    assert.equal(derived.isBuilt, true);
+    assert.equal(derived.missionScore?.cappedTotal, 100);
   });
 
   it("mid-mission payload restores the plot gate and geometry but nothing downstream", () => {
@@ -113,6 +180,8 @@ describe("page source → payload", () => {
       lShapedChecked: false,
       finalArchitectureId: null,
       quantities: {},
+      constructionOrderChecked: false,
+      libraryItemsOrderChecked: false,
       reportAnswers: emptyGuidedReportAnswers,
       completed: false,
       ...overrides,
@@ -138,9 +207,42 @@ describe("page source → payload", () => {
       lShapedChecked: Boolean(derived.comparisonResults["l-shaped"]?.checked),
       finalArchitectureId: derived.finalArchitectureId,
       quantities: derived.quantities,
+      constructionOrderChecked: derived.constructionPurchase !== null,
+      libraryItemsOrderChecked: derived.libraryItemsPurchase !== null,
       reportAnswers: payload.reportAnswers,
       completed: derived.isBuilt && derived.readiness.ready,
     });
+    assert.equal(payloadsEquivalent(rebuilt, payload), true);
+  });
+
+  it("the page rule 'result present ⇔ checked' round-trips unchecked Store intent without promotion", () => {
+    const payload = {
+      ...completedLibraryPayload(),
+      constructionOrderChecked: false,
+      libraryItemsOrderChecked: true,
+      completed: false,
+    };
+    const derived = deriveMissionState(payload);
+    const rebuilt = buildLibraryProgressPayload({
+      plotInspected: payload.plotInspected,
+      areaInput: payload.geometry.area,
+      perimeterInput: payload.geometry.perimeter,
+      compactForm: payload.compact.form,
+      compactChecked: true,
+      twoBuildingForm: payload.twoBuilding.form,
+      twoBuildingChecked: true,
+      lShapedForm: payload.lShaped.form,
+      lShapedChecked: true,
+      finalArchitectureId: derived.finalArchitectureId,
+      quantities: derived.quantities,
+      constructionOrderChecked: derived.constructionPurchase !== null,
+      libraryItemsOrderChecked: derived.libraryItemsPurchase !== null,
+      reportAnswers: payload.reportAnswers,
+      completed: derived.isBuilt && derived.readiness.ready,
+    });
+    assert.equal(rebuilt.constructionOrderChecked, false);
+    assert.equal(rebuilt.libraryItemsOrderChecked, true);
+    assert.equal(rebuilt.completed, false);
     assert.equal(payloadsEquivalent(rebuilt, payload), true);
   });
 

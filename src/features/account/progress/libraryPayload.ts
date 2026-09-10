@@ -48,6 +48,8 @@ export const PAYLOAD_KEYS = [
   "lShaped",
   "finalArchitectureId",
   "storeSelections",
+  "constructionOrderChecked",
+  "libraryItemsOrderChecked",
   "reportAnswers",
   "completed",
 ] as const;
@@ -141,6 +143,13 @@ export type MyCityLibraryProgressV1 = {
   lShaped: ArchitectureFormProgress<LShapedSourceForm>;
   finalArchitectureId: RequiredArchitectureId | null;
   storeSelections: StoreSelectionProgress[];
+  /**
+   * Learner explicitly pressed "Check construction order" / "Check library-items
+   * order" since the last quantity change or final-architecture selection.
+   * Evidence of intent only — the validation result itself is always derived.
+   */
+  constructionOrderChecked: boolean;
+  libraryItemsOrderChecked: boolean;
   reportAnswers: GuidedReportAnswers;
   completed: boolean;
 };
@@ -158,6 +167,8 @@ export type LibrarySourceSnapshot = {
   lShapedChecked: boolean;
   finalArchitectureId: RequiredArchitectureId | null;
   quantities: Record<string, number>;
+  constructionOrderChecked: boolean;
+  libraryItemsOrderChecked: boolean;
   reportAnswers: GuidedReportAnswers;
   completed: boolean;
 };
@@ -354,6 +365,8 @@ export function emptyLibraryProgress(): MyCityLibraryProgressV1 {
     lShaped: { checked: false, form: emptyLShapedForm() },
     finalArchitectureId: null,
     storeSelections: [],
+    constructionOrderChecked: false,
+    libraryItemsOrderChecked: false,
     reportAnswers: emptyGuidedReportAnswersV1(),
     completed: false,
   };
@@ -388,6 +401,8 @@ export function normalizeLibraryProgress(
       ? payload.finalArchitectureId
       : null,
     storeSelections: canonicalizeStoreSelections(payload.storeSelections ?? []),
+    constructionOrderChecked: payload.constructionOrderChecked === true,
+    libraryItemsOrderChecked: payload.libraryItemsOrderChecked === true,
     reportAnswers: {
       english: sanitizeLanguageAnswers(payload.reportAnswers?.english),
       french: sanitizeLanguageAnswers(payload.reportAnswers?.french),
@@ -409,6 +424,8 @@ export function buildLibraryProgressPayload(
     lShaped: { checked: source.lShapedChecked, form: source.lShapedForm },
     finalArchitectureId: source.finalArchitectureId,
     storeSelections: buildSelectedStoreItems(source.quantities),
+    constructionOrderChecked: source.constructionOrderChecked,
+    libraryItemsOrderChecked: source.libraryItemsOrderChecked,
     reportAnswers: source.reportAnswers,
     completed: source.completed,
   });
@@ -426,6 +443,12 @@ export function parseLibraryProgressV1(value: unknown): MyCityLibraryProgressV1 
     return null;
   }
   if (typeof value.plotInspected !== "boolean" || typeof value.completed !== "boolean") {
+    return null;
+  }
+  if (
+    typeof value.constructionOrderChecked !== "boolean" ||
+    typeof value.libraryItemsOrderChecked !== "boolean"
+  ) {
     return null;
   }
   const geometry = parseForm(GEOMETRY_KEYS, value.geometry);
@@ -457,6 +480,8 @@ export function parseLibraryProgressV1(value: unknown): MyCityLibraryProgressV1 
     lShaped,
     finalArchitectureId: value.finalArchitectureId as RequiredArchitectureId | null,
     storeSelections,
+    constructionOrderChecked: value.constructionOrderChecked,
+    libraryItemsOrderChecked: value.libraryItemsOrderChecked,
     reportAnswers,
     completed: value.completed,
   });

@@ -41,7 +41,25 @@ describe("guest progress storage", () => {
     assert.equal(restored.payload.geometry.area, "216");
     assert.equal(restored.payload.compact.form.bPrimeX, "17");
     assert.equal(restored.payload.reportAnswers.arabic.readingSupport.length > 10, true);
+    assert.equal(restored.payload.constructionOrderChecked, true);
+    assert.equal(restored.payload.libraryItemsOrderChecked, true);
     assert.equal(restored.payload.completed, true);
+  });
+
+  it("round-trips Store validation intent independently of quantities", () => {
+    const storage = memoryStorage();
+    const payload = {
+      ...completedLibraryPayload(),
+      constructionOrderChecked: true,
+      libraryItemsOrderChecked: false,
+      completed: false,
+    };
+    writeGuestProgress(guestRecordFromPayload(payload), storage);
+    const restored = readGuestProgress(storage);
+    assert.ok(restored);
+    assert.equal(restored.payload.storeSelections.length, 12);
+    assert.equal(restored.payload.constructionOrderChecked, true);
+    assert.equal(restored.payload.libraryItemsOrderChecked, false);
   });
 
   it("does not treat the untouched initial state as guest data", () => {

@@ -43,6 +43,23 @@ describe("progress client", () => {
     }
   });
 
+  it("treats a record without the Store validation-intent flags as absent (same as any unknown shape)", async () => {
+    const legacy = recordFor("learner-a", 2, midMissionPayload()) as unknown as {
+      payload: Record<string, unknown>;
+    };
+    const { constructionOrderChecked: _c, libraryItemsOrderChecked: _l, ...withoutFlags } =
+      legacy.payload;
+    void _c;
+    void _l;
+    legacy.payload = withoutFlags;
+    const fetchImpl = (async () => jsonResponse({ record: legacy })) as unknown as typeof fetch;
+    const result = await fetchProgress(ORIGIN, fetchImpl);
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.record, null);
+    }
+  });
+
   it("does not throw on network failure and reports unconfigured without an origin", async () => {
     const failing = (async () => {
       throw new TypeError("Failed to fetch");
