@@ -18,13 +18,22 @@ import {
   getTwoBuildingPreview,
   type FootprintPreviewData,
 } from "@/features/mycity/mission-library/logic/coordinateProjection";
+import {
+  compactDesignInputFromForm,
+  lShapedDesignInputFromForm,
+  parseNumericSource,
+  twoBuildingDesignInputFromForm,
+  type CompactFormKey,
+  type CompactRectangleSourceForm,
+  type LShapedFormKey,
+  type LShapedSourceForm,
+  type TwoBuildingFormKey,
+  type TwoBuildingSourceForm,
+} from "@/features/mycity/mission-library/state/architectureForms";
 import type {
   ArchitectureDesignResult,
-  CompactRectangleDesignInput,
   CourtyardDesignInput,
-  LShapedDesignInput,
   RequiredArchitectureId,
-  TwoBuildingDesignInput,
 } from "@/features/mycity/mission-library/types/missionTypes";
 
 interface ArchitectureComparisonPanelProps {
@@ -32,6 +41,13 @@ interface ArchitectureComparisonPanelProps {
   comparisonResults: Partial<Record<RequiredArchitectureId, ArchitectureDesignResult>>;
   finalArchitectureId: RequiredArchitectureId | null;
   bonusResult: ArchitectureDesignResult | null;
+  /** Learner source forms are owned by the page so they can be persisted and restored. */
+  compactForm: CompactRectangleSourceForm;
+  twoBuildingForm: TwoBuildingSourceForm;
+  lShapedForm: LShapedSourceForm;
+  onCompactFieldChange: (field: CompactFormKey, value: string) => void;
+  onTwoBuildingFieldChange: (field: TwoBuildingFormKey, value: string) => void;
+  onLShapedFieldChange: (field: LShapedFormKey, value: string) => void;
   onCheckDesign: (
     architectureId: RequiredArchitectureId,
     result: ArchitectureDesignResult,
@@ -178,47 +194,21 @@ export function ArchitectureComparisonPanel({
   comparisonResults,
   finalArchitectureId,
   bonusResult,
+  compactForm,
+  twoBuildingForm,
+  lShapedForm,
+  onCompactFieldChange,
+  onTwoBuildingFieldChange,
+  onLShapedFieldChange,
   onCheckDesign,
   onSelectFinal,
   onCheckBonus,
   onFootprintPreviewChange,
 }: ArchitectureComparisonPanelProps) {
+  /* Transient UI only: which design drives the map preview. Never persisted. */
   const [activePreviewId, setActivePreviewId] =
     useState<RequiredArchitectureId>("compact-rectangle");
-  const [compactForm, setCompactForm] = useState({
-    aPrimeX: "",
-    aPrimeY: "",
-    bPrimeX: "",
-    bPrimeY: "",
-    cPrimeX: "",
-    cPrimeY: "",
-    dPrimeX: "",
-    dPrimeY: "",
-    learnerAreaAnswer: "",
-    learnerWallLengthAnswer: "",
-  });
-  const [twoBuildingForm, setTwoBuildingForm] = useState({
-    x1: "0",
-    y1: "0",
-    length1: "",
-    width1: "",
-    x2: "",
-    y2: "",
-    length2: "",
-    width2: "",
-    learnerTotalAreaAnswer: "",
-    learnerTotalWallLengthAnswer: "",
-  });
-  const [lShapedForm, setLShapedForm] = useState({
-    x: "0",
-    y: "0",
-    outerLength: "",
-    outerWidth: "",
-    cutoutLength: "",
-    cutoutWidth: "",
-    learnerIndoorAreaAnswer: "",
-    learnerWallLengthAnswer: "",
-  });
+  /* Optional courtyard bonus stays local; it is excluded from Account v0 persistence. */
   const [courtyardForm, setCourtyardForm] = useState({
     x: "0",
     y: "0",
@@ -234,32 +224,10 @@ export function ArchitectureComparisonPanel({
   const canSelectFinal = canSelectFinalArchitecture(comparisonResults);
   const bonusUnlocked = canUnlockBonusChallenge(comparisonResults);
 
-  function parseForm(values: Record<string, string>): Record<string, number> {
-    return Object.fromEntries(
-      Object.entries(values).map(([key, value]) => [key, Number(value)]),
-    );
-  }
-
-  function parseCompactCorners(
-    values: Record<string, string>,
-  ): CompactRectangleDesignInput {
-    const parsed = parseForm(values);
-
-    return {
-      aPrime: { x: parsed.aPrimeX, y: parsed.aPrimeY },
-      bPrime: { x: parsed.bPrimeX, y: parsed.bPrimeY },
-      cPrime: { x: parsed.cPrimeX, y: parsed.cPrimeY },
-      dPrime: { x: parsed.dPrimeX, y: parsed.dPrimeY },
-      learnerAreaAnswer: parsed.learnerAreaAnswer,
-      learnerWallLengthAnswer: parsed.learnerWallLengthAnswer,
-    };
-  }
-
   function getCompactPreview(
-    values: Record<string, string>,
+    values: CompactRectangleSourceForm,
   ): FootprintPreviewData | null {
-    const corners = parseCompactCorners(values);
-    return getCompactRectanglePreviewFromCorners(corners);
+    return getCompactRectanglePreviewFromCorners(compactDesignInputFromForm(values));
   }
 
   const compactPreviewValues = useMemo(
@@ -272,29 +240,18 @@ export function ArchitectureComparisonPanel({
       return;
     }
 
-    const parsedTwoBuilding = parseForm(twoBuildingForm);
-    const parsedLShaped = parseForm(lShapedForm);
-
     let preview: FootprintPreviewData | null = null;
 
     if (activePreviewId === "compact-rectangle") {
       preview = getCompactPreview(compactForm);
     } else if (activePreviewId === "two-building") {
+      const parsedTwoBuilding = twoBuildingDesignInputFromForm(twoBuildingForm);
       preview = getTwoBuildingPreview(
-        {
-          x: parsedTwoBuilding.x1,
-          y: parsedTwoBuilding.y1,
-          length: parsedTwoBuilding.length1,
-          width: parsedTwoBuilding.width1,
-        },
-        {
-          x: parsedTwoBuilding.x2,
-          y: parsedTwoBuilding.y2,
-          length: parsedTwoBuilding.length2,
-          width: parsedTwoBuilding.width2,
-        },
+        parsedTwoBuilding.building1,
+        parsedTwoBuilding.building2,
       );
     } else if (activePreviewId === "l-shaped") {
+      const parsedLShaped = lShapedDesignInputFromForm(lShapedForm);
       preview = getLShapedPreview(
         parsedLShaped.x,
         parsedLShaped.y,
@@ -314,60 +271,39 @@ export function ArchitectureComparisonPanel({
     onFootprintPreviewChange,
   ]);
 
+  function updateCompactCorner(field: CompactFormKey, value: string) {
+    setActivePreviewId("compact-rectangle");
+    onCompactFieldChange(field, value);
+  }
+
   function handleCheckCompact() {
     onCheckDesign(
       "compact-rectangle",
-      validateCompactRectangleDesign(parseCompactCorners(compactForm)),
+      validateCompactRectangleDesign(compactDesignInputFromForm(compactForm)),
     );
   }
 
   function handleCheckTwoBuilding() {
-    const parsed = parseForm(twoBuildingForm);
-    const input: TwoBuildingDesignInput = {
-      building1: {
-        x: parsed.x1,
-        y: parsed.y1,
-        length: parsed.length1,
-        width: parsed.width1,
-      },
-      building2: {
-        x: parsed.x2,
-        y: parsed.y2,
-        length: parsed.length2,
-        width: parsed.width2,
-      },
-      learnerTotalAreaAnswer: parsed.learnerTotalAreaAnswer,
-      learnerTotalWallLengthAnswer: parsed.learnerTotalWallLengthAnswer,
-    };
-    onCheckDesign("two-building", validateTwoBuildingDesign(input));
+    onCheckDesign(
+      "two-building",
+      validateTwoBuildingDesign(twoBuildingDesignInputFromForm(twoBuildingForm)),
+    );
   }
 
   function handleCheckLShaped() {
-    const parsed = parseForm(lShapedForm);
-    const values: LShapedDesignInput = {
-      x: parsed.x,
-      y: parsed.y,
-      outerLength: parsed.outerLength,
-      outerWidth: parsed.outerWidth,
-      cutoutLength: parsed.cutoutLength,
-      cutoutWidth: parsed.cutoutWidth,
-      learnerIndoorAreaAnswer: parsed.learnerIndoorAreaAnswer,
-      learnerWallLengthAnswer: parsed.learnerWallLengthAnswer,
-    };
-    onCheckDesign("l-shaped", validateLShapedDesign(values));
+    onCheckDesign("l-shaped", validateLShapedDesign(lShapedDesignInputFromForm(lShapedForm)));
   }
 
   function handleCheckCourtyard() {
-    const parsed = parseForm(courtyardForm);
     const values: CourtyardDesignInput = {
-      x: parsed.x,
-      y: parsed.y,
-      outerLength: parsed.outerLength,
-      outerWidth: parsed.outerWidth,
-      courtyardLength: parsed.courtyardLength,
-      courtyardWidth: parsed.courtyardWidth,
-      learnerIndoorAreaAnswer: parsed.learnerIndoorAreaAnswer,
-      learnerWallLengthAnswer: parsed.learnerWallLengthAnswer,
+      x: parseNumericSource(courtyardForm.x),
+      y: parseNumericSource(courtyardForm.y),
+      outerLength: parseNumericSource(courtyardForm.outerLength),
+      outerWidth: parseNumericSource(courtyardForm.outerWidth),
+      courtyardLength: parseNumericSource(courtyardForm.courtyardLength),
+      courtyardWidth: parseNumericSource(courtyardForm.courtyardWidth),
+      learnerIndoorAreaAnswer: parseNumericSource(courtyardForm.learnerIndoorAreaAnswer),
+      learnerWallLengthAnswer: parseNumericSource(courtyardForm.learnerWallLengthAnswer),
     };
     onCheckBonus(validateCourtyardDesign(values));
   }
@@ -410,34 +346,34 @@ export function ArchitectureComparisonPanel({
                     <p className="text-sm font-medium text-slate-800">
                       {t(locale, "architecture.aPrimeBottomLeft")}
                     </p>
-                    <NumberField label={t(locale, "architecture.aPrimeX")} value={compactForm.aPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, aPrimeX: value })); }} />
-                    <NumberField label={t(locale, "architecture.aPrimeY")} value={compactForm.aPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, aPrimeY: value })); }} />
+                    <NumberField label={t(locale, "architecture.aPrimeX")} value={compactForm.aPrimeX} onChange={(value) => updateCompactCorner("aPrimeX", value)} />
+                    <NumberField label={t(locale, "architecture.aPrimeY")} value={compactForm.aPrimeY} onChange={(value) => updateCompactCorner("aPrimeY", value)} />
                   </div>
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
                     <p className="text-sm font-medium text-slate-800">
                       {t(locale, "architecture.bPrimeBottomRight")}
                     </p>
-                    <NumberField label={t(locale, "architecture.bPrimeX")} value={compactForm.bPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, bPrimeX: value })); }} />
-                    <NumberField label={t(locale, "architecture.bPrimeY")} value={compactForm.bPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, bPrimeY: value })); }} />
+                    <NumberField label={t(locale, "architecture.bPrimeX")} value={compactForm.bPrimeX} onChange={(value) => updateCompactCorner("bPrimeX", value)} />
+                    <NumberField label={t(locale, "architecture.bPrimeY")} value={compactForm.bPrimeY} onChange={(value) => updateCompactCorner("bPrimeY", value)} />
                   </div>
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
                     <p className="text-sm font-medium text-slate-800">
                       {t(locale, "architecture.cPrimeTopRight")}
                     </p>
-                    <NumberField label={t(locale, "architecture.cPrimeX")} value={compactForm.cPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, cPrimeX: value })); }} />
-                    <NumberField label={t(locale, "architecture.cPrimeY")} value={compactForm.cPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, cPrimeY: value })); }} />
+                    <NumberField label={t(locale, "architecture.cPrimeX")} value={compactForm.cPrimeX} onChange={(value) => updateCompactCorner("cPrimeX", value)} />
+                    <NumberField label={t(locale, "architecture.cPrimeY")} value={compactForm.cPrimeY} onChange={(value) => updateCompactCorner("cPrimeY", value)} />
                   </div>
                   <div className="space-y-3 rounded-lg border border-slate-200 p-3">
                     <p className="text-sm font-medium text-slate-800">
                       {t(locale, "architecture.dPrimeTopLeft")}
                     </p>
-                    <NumberField label={t(locale, "architecture.dPrimeX")} value={compactForm.dPrimeX} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, dPrimeX: value })); }} />
-                    <NumberField label={t(locale, "architecture.dPrimeY")} value={compactForm.dPrimeY} onChange={(value) => { setActivePreviewId("compact-rectangle"); setCompactForm((current) => ({ ...current, dPrimeY: value })); }} />
+                    <NumberField label={t(locale, "architecture.dPrimeX")} value={compactForm.dPrimeX} onChange={(value) => updateCompactCorner("dPrimeX", value)} />
+                    <NumberField label={t(locale, "architecture.dPrimeY")} value={compactForm.dPrimeY} onChange={(value) => updateCompactCorner("dPrimeY", value)} />
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <NumberField label={t(locale, "architecture.yourAreaAnswer")} value={compactForm.learnerAreaAnswer} onChange={(value) => setCompactForm((current) => ({ ...current, learnerAreaAnswer: value }))} />
-                  <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={compactForm.learnerWallLengthAnswer} onChange={(value) => setCompactForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
+                  <NumberField label={t(locale, "architecture.yourAreaAnswer")} value={compactForm.learnerAreaAnswer} onChange={(value) => onCompactFieldChange("learnerAreaAnswer", value)} />
+                  <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={compactForm.learnerWallLengthAnswer} onChange={(value) => onCompactFieldChange("learnerWallLengthAnswer", value)} />
                 </div>
               </>
             ) : null}
@@ -455,10 +391,10 @@ export function ArchitectureComparisonPanel({
                     {t(locale, "architecture.building1")}
                   </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <NumberField label={t(locale, "architecture.x1")} value={twoBuildingForm.x1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, x1: value }))} />
-                    <NumberField label={t(locale, "architecture.y1")} value={twoBuildingForm.y1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, y1: value }))} />
-                    <NumberField label={t(locale, "architecture.length1")} value={twoBuildingForm.length1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, length1: value }))} />
-                    <NumberField label={t(locale, "architecture.width1")} value={twoBuildingForm.width1} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, width1: value }))} />
+                    <NumberField label={t(locale, "architecture.x1")} value={twoBuildingForm.x1} onChange={(value) => onTwoBuildingFieldChange("x1", value)} />
+                    <NumberField label={t(locale, "architecture.y1")} value={twoBuildingForm.y1} onChange={(value) => onTwoBuildingFieldChange("y1", value)} />
+                    <NumberField label={t(locale, "architecture.length1")} value={twoBuildingForm.length1} onChange={(value) => onTwoBuildingFieldChange("length1", value)} />
+                    <NumberField label={t(locale, "architecture.width1")} value={twoBuildingForm.width1} onChange={(value) => onTwoBuildingFieldChange("width1", value)} />
                   </div>
                 </div>
                 <div>
@@ -466,29 +402,29 @@ export function ArchitectureComparisonPanel({
                     {t(locale, "architecture.building2")}
                   </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <NumberField label={t(locale, "architecture.x2")} value={twoBuildingForm.x2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, x2: value }))} />
-                    <NumberField label={t(locale, "architecture.y2")} value={twoBuildingForm.y2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, y2: value }))} />
-                    <NumberField label={t(locale, "architecture.length2")} value={twoBuildingForm.length2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, length2: value }))} />
-                    <NumberField label={t(locale, "architecture.width2")} value={twoBuildingForm.width2} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, width2: value }))} />
+                    <NumberField label={t(locale, "architecture.x2")} value={twoBuildingForm.x2} onChange={(value) => onTwoBuildingFieldChange("x2", value)} />
+                    <NumberField label={t(locale, "architecture.y2")} value={twoBuildingForm.y2} onChange={(value) => onTwoBuildingFieldChange("y2", value)} />
+                    <NumberField label={t(locale, "architecture.length2")} value={twoBuildingForm.length2} onChange={(value) => onTwoBuildingFieldChange("length2", value)} />
+                    <NumberField label={t(locale, "architecture.width2")} value={twoBuildingForm.width2} onChange={(value) => onTwoBuildingFieldChange("width2", value)} />
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <NumberField label={t(locale, "architecture.yourTotalAreaAnswer")} value={twoBuildingForm.learnerTotalAreaAnswer} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, learnerTotalAreaAnswer: value }))} />
-                  <NumberField label={t(locale, "architecture.yourTotalWallLengthAnswer")} value={twoBuildingForm.learnerTotalWallLengthAnswer} onChange={(value) => setTwoBuildingForm((current) => ({ ...current, learnerTotalWallLengthAnswer: value }))} />
+                  <NumberField label={t(locale, "architecture.yourTotalAreaAnswer")} value={twoBuildingForm.learnerTotalAreaAnswer} onChange={(value) => onTwoBuildingFieldChange("learnerTotalAreaAnswer", value)} />
+                  <NumberField label={t(locale, "architecture.yourTotalWallLengthAnswer")} value={twoBuildingForm.learnerTotalWallLengthAnswer} onChange={(value) => onTwoBuildingFieldChange("learnerTotalWallLengthAnswer", value)} />
                 </div>
               </div>
             ) : null}
 
             {architectureId === "l-shaped" ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <NumberField label={t(locale, "architecture.xPosition")} value={lShapedForm.x} onChange={(value) => setLShapedForm((current) => ({ ...current, x: value }))} />
-                <NumberField label={t(locale, "architecture.yPosition")} value={lShapedForm.y} onChange={(value) => setLShapedForm((current) => ({ ...current, y: value }))} />
-                <NumberField label={t(locale, "architecture.outerLength")} value={lShapedForm.outerLength} onChange={(value) => setLShapedForm((current) => ({ ...current, outerLength: value }))} />
-                <NumberField label={t(locale, "architecture.outerWidth")} value={lShapedForm.outerWidth} onChange={(value) => setLShapedForm((current) => ({ ...current, outerWidth: value }))} />
-                <NumberField label={t(locale, "architecture.cutoutLength")} value={lShapedForm.cutoutLength} onChange={(value) => setLShapedForm((current) => ({ ...current, cutoutLength: value }))} />
-                <NumberField label={t(locale, "architecture.cutoutWidth")} value={lShapedForm.cutoutWidth} onChange={(value) => setLShapedForm((current) => ({ ...current, cutoutWidth: value }))} />
-                <NumberField label={t(locale, "architecture.yourIndoorAreaAnswer")} value={lShapedForm.learnerIndoorAreaAnswer} onChange={(value) => setLShapedForm((current) => ({ ...current, learnerIndoorAreaAnswer: value }))} />
-                <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={lShapedForm.learnerWallLengthAnswer} onChange={(value) => setLShapedForm((current) => ({ ...current, learnerWallLengthAnswer: value }))} />
+                <NumberField label={t(locale, "architecture.xPosition")} value={lShapedForm.x} onChange={(value) => onLShapedFieldChange("x", value)} />
+                <NumberField label={t(locale, "architecture.yPosition")} value={lShapedForm.y} onChange={(value) => onLShapedFieldChange("y", value)} />
+                <NumberField label={t(locale, "architecture.outerLength")} value={lShapedForm.outerLength} onChange={(value) => onLShapedFieldChange("outerLength", value)} />
+                <NumberField label={t(locale, "architecture.outerWidth")} value={lShapedForm.outerWidth} onChange={(value) => onLShapedFieldChange("outerWidth", value)} />
+                <NumberField label={t(locale, "architecture.cutoutLength")} value={lShapedForm.cutoutLength} onChange={(value) => onLShapedFieldChange("cutoutLength", value)} />
+                <NumberField label={t(locale, "architecture.cutoutWidth")} value={lShapedForm.cutoutWidth} onChange={(value) => onLShapedFieldChange("cutoutWidth", value)} />
+                <NumberField label={t(locale, "architecture.yourIndoorAreaAnswer")} value={lShapedForm.learnerIndoorAreaAnswer} onChange={(value) => onLShapedFieldChange("learnerIndoorAreaAnswer", value)} />
+                <NumberField label={t(locale, "architecture.yourWallLengthAnswer")} value={lShapedForm.learnerWallLengthAnswer} onChange={(value) => onLShapedFieldChange("learnerWallLengthAnswer", value)} />
               </div>
             ) : null}
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { IdentityProvider } from "@/features/account/identity/IdentityProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,7 +24,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* One Portal identity source for the whole app: identity chrome and
+            the progress layer observe the same learner snapshot. */}
+        <IdentityProvider>{children}</IdentityProvider>
+      </body>
     </html>
   );
 }

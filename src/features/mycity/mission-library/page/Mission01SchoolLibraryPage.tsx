@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { LearnerIdentityBar } from "@/features/account/identity/LearnerIdentityBar";
+import {
+  buildLibraryProgressPayload,
+  type MyCityLibraryProgressV1,
+} from "@/features/account/progress/libraryPayload";
+import { ProgressStatus } from "@/features/account/progress/ProgressStatus";
+import { useLibraryProgress } from "@/features/account/progress/useLibraryProgress";
 import { ArchitectureComparisonPanel } from "@/features/mycity/mission-library/components/ArchitectureComparisonPanel";
 import { BudgetPanel } from "@/features/mycity/mission-library/components/BudgetPanel";
 import { BuildSummary } from "@/features/mycity/mission-library/components/BuildSummary";
@@ -16,18 +23,34 @@ import {
 } from "@/features/mycity/mission-library/data/mapConfig";
 import { localeDir, t, type Locale } from "@/features/mycity/mission-library/data/i18n";
 import { libraryMissionConfig } from "@/features/mycity/mission-library/data/missionConfig";
+import { emptyGuidedReportAnswers } from "@/features/mycity/mission-library/data/reportConfig";
+import { buildCompletionArtifacts } from "@/features/mycity/mission-library/logic/missionCompletion";
+import { getMissionReadiness } from "@/features/mycity/mission-library/logic/missionReadiness";
+import { deriveMissionState } from "@/features/mycity/mission-library/logic/missionRestore";
 import {
-  emptyGuidedReportAnswers,
-} from "@/features/mycity/mission-library/data/reportConfig";
+  buildSelectedStoreItems,
+  createEmptyQuantityMap,
+  filterSelectionsByBudgetScope,
+} from "@/features/mycity/mission-library/logic/storeSelection";
 import {
-  buildMissionReportData,
-  generateTrilingualReports,
-} from "@/features/mycity/mission-library/logic/report";
-import { calculateMissionScore } from "@/features/mycity/mission-library/logic/scoring";
-import {
+  validateConstructionPurchase,
   validateGeometryAnswer,
   validateGuidedReportAnswers,
+  validateLibraryItemsPurchase,
 } from "@/features/mycity/mission-library/logic/validation";
+import {
+  emptyCompactForm,
+  emptyLShapedForm,
+  emptyTwoBuildingForm,
+  parseNumericSource,
+  sanitizeNumericSource,
+  type CompactFormKey,
+  type CompactRectangleSourceForm,
+  type LShapedFormKey,
+  type LShapedSourceForm,
+  type TwoBuildingFormKey,
+  type TwoBuildingSourceForm,
+} from "@/features/mycity/mission-library/state/architectureForms";
 import type { FootprintPreviewData } from "@/features/mycity/mission-library/logic/coordinateProjection";
 import type {
   ArchitectureDesignResult,
@@ -36,17 +59,35 @@ import type {
   MissionScore,
   RequiredArchitectureId,
   ScopedPurchaseValidationResult,
-  SelectedStoreItem,
 } from "@/features/mycity/mission-library/types/missionTypes";
+
+/** Store quantities are bounded so a persisted payload can never explode in size. */
+const STORE_QUANTITY_INPUT_MAX = 1_000_000;
 
 export function Mission01SchoolLibraryPage() {
   const { plot } = elBahdjaCampusMap;
   const { dimensions } = plot;
 
+  /* UI preference only — never persisted centrally. */
   const [locale, setLocale] = useState<Locale>("en");
+
+  /* Learner source state (persisted). */
   const [plotInspected, setPlotInspected] = useState(false);
   const [areaInput, setAreaInput] = useState("");
   const [perimeterInput, setPerimeterInput] = useState("");
+  const [compactForm, setCompactForm] = useState<CompactRectangleSourceForm>(emptyCompactForm);
+  const [twoBuildingForm, setTwoBuildingForm] =
+    useState<TwoBuildingSourceForm>(emptyTwoBuildingForm);
+  const [lShapedForm, setLShapedForm] = useState<LShapedSourceForm>(emptyLShapedForm);
+  const [finalArchitectureId, setFinalArchitectureId] =
+    useState<RequiredArchitectureId | null>(null);
+  const [quantities, setQuantities] = useState<Record<string, number>>(createEmptyQuantityMap);
+  const [reportAnswers, setReportAnswers] = useState<GuidedReportAnswers>(
+    emptyGuidedReportAnswers,
+  );
+  const [isBuilt, setIsBuilt] = useState(false);
+
+  /* Derived state (re-computed from source through the existing validators). */
   const [geometryResult, setGeometryResult] =
     useState<GeometryValidationResult | null>(null);
   const [comparisonResults, setComparisonResults] = useState<
@@ -54,30 +95,20 @@ export function Mission01SchoolLibraryPage() {
   >({});
   const [finalArchitecture, setFinalArchitecture] =
     useState<ArchitectureDesignResult | null>(null);
-  const [finalArchitectureId, setFinalArchitectureId] =
-    useState<RequiredArchitectureId | null>(null);
   const [bonusResult, setBonusResult] =
     useState<ArchitectureDesignResult | null>(null);
   const [constructionPurchase, setConstructionPurchase] =
     useState<ScopedPurchaseValidationResult | null>(null);
   const [libraryItemsPurchase, setLibraryItemsPurchase] =
     useState<ScopedPurchaseValidationResult | null>(null);
-  const [constructionSelections, setConstructionSelections] = useState<
-    SelectedStoreItem[]
-  >([]);
-  const [librarySelections, setLibrarySelections] = useState<SelectedStoreItem[]>(
-    [],
-  );
-  const [reportAnswers, setReportAnswers] = useState<GuidedReportAnswers>(
-    emptyGuidedReportAnswers,
-  );
-  const [isBuilt, setIsBuilt] = useState(false);
   const [missionScore, setMissionScore] = useState<MissionScore | null>(null);
   const [reportSummary, setReportSummary] = useState<{
     english: string;
     french: string;
     arabic: string;
   } | null>(null);
+
+  /* Transient UI state — intentionally reset on refresh. */
   const [footprintPreview, setFootprintPreview] =
     useState<FootprintPreviewData | null>(null);
 
@@ -85,29 +116,21 @@ export function Mission01SchoolLibraryPage() {
     ? `${elBahdjaCampusMap.referenceImageSize.width} / ${elBahdjaCampusMap.referenceImageSize.height}`
     : "4 / 3";
 
-  const [mapImageSrc, setMapImageSrc] = useState(getCampusMapImageSrc(false));
+  /* Built map asset is derived from completion; a failed load falls back to the base map. */
+  const [builtImageFailed, setBuiltImageFailed] = useState(false);
+  const mapImageSrc =
+    isBuilt && !builtImageFailed
+      ? getCampusMapImageSrc(true)
+      : elBahdjaCampusMap.backgroundImage;
 
-  useEffect(() => {
-    setMapImageSrc(getCampusMapImageSrc(isBuilt));
-  }, [isBuilt]);
-
-  const comparisonChecked = useMemo(
-    () => ({
-      "compact-rectangle": Boolean(comparisonResults["compact-rectangle"]?.checked),
-      "two-building": Boolean(comparisonResults["two-building"]?.checked),
-      "l-shaped": Boolean(comparisonResults["l-shaped"]?.checked),
-    }),
-    [comparisonResults],
+  const allSelections = useMemo(() => buildSelectedStoreItems(quantities), [quantities]);
+  const constructionSelections = useMemo(
+    () => filterSelectionsByBudgetScope(allSelections, "construction"),
+    [allSelections],
   );
-
-  const comparisonValid = useMemo(
-    () => ({
-      "compact-rectangle":
-        comparisonResults["compact-rectangle"]?.isValid === true,
-      "two-building": comparisonResults["two-building"]?.isValid === true,
-      "l-shaped": comparisonResults["l-shaped"]?.isValid === true,
-    }),
-    [comparisonResults],
+  const librarySelections = useMemo(
+    () => filterSelectionsByBudgetScope(allSelections, "library-items"),
+    [allSelections],
   );
 
   const reportValidation = useMemo(
@@ -115,9 +138,96 @@ export function Mission01SchoolLibraryPage() {
     [reportAnswers],
   );
 
+  const readiness = useMemo(
+    () =>
+      getMissionReadiness({
+        geometry: geometryResult,
+        comparisonResults,
+        finalArchitecture,
+        constructionPurchase,
+        libraryItemsPurchase,
+        reportAnswers,
+      }),
+    [
+      comparisonResults,
+      constructionPurchase,
+      finalArchitecture,
+      geometryResult,
+      libraryItemsPurchase,
+      reportAnswers,
+    ],
+  );
+
+  /* Canonical Account v0 payload for this render: source inputs only. */
+  const persistable = buildLibraryProgressPayload({
+    plotInspected,
+    areaInput,
+    perimeterInput,
+    compactForm,
+    compactChecked: Boolean(comparisonResults["compact-rectangle"]?.checked),
+    twoBuildingForm,
+    twoBuildingChecked: Boolean(comparisonResults["two-building"]?.checked),
+    lShapedForm,
+    lShapedChecked: Boolean(comparisonResults["l-shaped"]?.checked),
+    finalArchitectureId,
+    quantities,
+    reportAnswers,
+    completed: isBuilt && readiness.ready,
+  });
+
+  const applyHydration = useCallback((payload: MyCityLibraryProgressV1) => {
+    const derived = deriveMissionState(payload);
+    setPlotInspected(payload.plotInspected);
+    setAreaInput(payload.geometry.area);
+    setPerimeterInput(payload.geometry.perimeter);
+    setCompactForm(payload.compact.form);
+    setTwoBuildingForm(payload.twoBuilding.form);
+    setLShapedForm(payload.lShaped.form);
+    setGeometryResult(derived.geometryResult);
+    setComparisonResults(derived.comparisonResults);
+    setFinalArchitectureId(derived.finalArchitectureId);
+    setFinalArchitecture(derived.finalArchitecture);
+    setBonusResult(null);
+    setQuantities(derived.quantities);
+    setConstructionPurchase(derived.constructionPurchase);
+    setLibraryItemsPurchase(derived.libraryItemsPurchase);
+    setReportAnswers(payload.reportAnswers);
+    setIsBuilt(derived.isBuilt);
+    setMissionScore(derived.missionScore);
+    setReportSummary(derived.reportSummary);
+    setFootprintPreview(null);
+  }, []);
+
+  const resetHostForOwnerChange = useCallback(() => {
+    setPlotInspected(false);
+    setAreaInput("");
+    setPerimeterInput("");
+    setCompactForm(emptyCompactForm());
+    setTwoBuildingForm(emptyTwoBuildingForm());
+    setLShapedForm(emptyLShapedForm());
+    setGeometryResult(null);
+    setComparisonResults({});
+    setFinalArchitectureId(null);
+    setFinalArchitecture(null);
+    setBonusResult(null);
+    setQuantities(createEmptyQuantityMap());
+    setConstructionPurchase(null);
+    setLibraryItemsPurchase(null);
+    setReportAnswers(emptyGuidedReportAnswers);
+    setIsBuilt(false);
+    setMissionScore(null);
+    setReportSummary(null);
+    setFootprintPreview(null);
+  }, []);
+
+  const { uiStatus, retry, accountCompletionLocked } = useLibraryProgress(persistable, {
+    hydrate: applyHydration,
+    resetHost: resetHostForOwnerChange,
+  });
+
   function handleMapImageError() {
     if (mapImageSrc !== elBahdjaCampusMap.backgroundImage) {
-      setMapImageSrc(elBahdjaCampusMap.backgroundImage);
+      setBuiltImageFailed(true);
     }
   }
 
@@ -137,11 +247,23 @@ export function Mission01SchoolLibraryPage() {
     event.preventDefault();
     setGeometryResult(
       validateGeometryAnswer({
-        area: Number(areaInput),
-        perimeter: Number(perimeterInput),
+        area: parseNumericSource(areaInput),
+        perimeter: parseNumericSource(perimeterInput),
       }),
     );
     resetCompletionState();
+  }
+
+  function updateCompactField(field: CompactFormKey, value: string) {
+    setCompactForm((current) => ({ ...current, [field]: sanitizeNumericSource(value) }));
+  }
+
+  function updateTwoBuildingField(field: TwoBuildingFormKey, value: string) {
+    setTwoBuildingForm((current) => ({ ...current, [field]: sanitizeNumericSource(value) }));
+  }
+
+  function updateLShapedField(field: LShapedFormKey, value: string) {
+    setLShapedForm((current) => ({ ...current, [field]: sanitizeNumericSource(value) }));
   }
 
   function handleCheckDesign(
@@ -170,51 +292,55 @@ export function Mission01SchoolLibraryPage() {
     resetCompletionState();
   }
 
+  function updateQuantity(itemId: string, value: string) {
+    const parsed = Number(value);
+    const bounded = Number.isFinite(parsed)
+      ? Math.min(STORE_QUANTITY_INPUT_MAX, Math.max(0, parsed))
+      : 0;
+    setQuantities((current) => ({ ...current, [itemId]: bounded }));
+    setConstructionPurchase(null);
+    setLibraryItemsPurchase(null);
+    resetCompletionState();
+  }
+
+  function handleConstructionSubmit() {
+    setConstructionPurchase(
+      validateConstructionPurchase(allSelections, finalArchitecture?.construction),
+    );
+    resetCompletionState();
+  }
+
+  function handleLibraryItemsSubmit() {
+    setLibraryItemsPurchase(validateLibraryItemsPurchase(allSelections));
+    resetCompletionState();
+  }
+
   function handleBuildLibrary() {
+    /* getMissionReadiness() is the single authority for completion. */
     if (
-      !geometryResult?.isValid ||
-      !finalArchitecture?.isValid ||
-      !constructionPurchase?.isValid ||
-      !libraryItemsPurchase?.isValid ||
-      !reportValidation.isValid
+      !readiness.ready ||
+      !geometryResult ||
+      !finalArchitecture ||
+      !constructionPurchase ||
+      !libraryItemsPurchase
     ) {
       return;
     }
 
-    const score = calculateMissionScore({
-      geometry: geometryResult,
-      comparisonChecked,
-      comparisonValid,
+    const artifacts = buildCompletionArtifacts({
+      geometryResult,
+      comparisonResults,
       finalArchitecture,
       constructionPurchase,
       libraryItemsPurchase,
       reportValidation,
-    });
-
-    const reportData = buildMissionReportData({
-      schoolName: libraryMissionConfig.schoolName,
-      plotLengthM: dimensions.lengthM,
-      plotWidthM: dimensions.widthM,
-      plotArea: 216,
-      plotPerimeter: 60,
-      architectureName: finalArchitecture.architectureName,
-      architectureIndoorArea: finalArchitecture.indoorArea,
-      architectureWallLength: finalArchitecture.wallLength,
-      constructionCost: constructionPurchase.totalCost,
-      remainingConstructionBudget: constructionPurchase.remainingBudget,
-      constructionBudgetLimit: libraryBudgetConfig.constructionBudget,
-      libraryItemsCost: libraryItemsPurchase.totalCost,
-      remainingLibraryItemsBudget: libraryItemsPurchase.remainingBudget,
-      libraryItemsBudgetLimit: libraryBudgetConfig.libraryItemsBudget,
       constructionSelections,
       librarySelections,
-      learnerAnswers: reportAnswers,
-      finalScore: score.cappedTotal,
-      currencyLabel: libraryBudgetConfig.currencyLabel,
+      reportAnswers,
     });
 
-    setMissionScore(score);
-    setReportSummary(generateTrilingualReports(reportData));
+    setMissionScore(artifacts.score);
+    setReportSummary(artifacts.summary);
     setIsBuilt(true);
   }
 
@@ -224,13 +350,18 @@ export function Mission01SchoolLibraryPage() {
         className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8"
         dir={localeDir(locale)}
         lang={locale}
+        data-account-complete={accountCompletionLocked ? "true" : "false"}
       >
         <header className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <LearnerIdentityBar locale={locale} />
+            <LanguageSelector locale={locale} onChange={setLocale} />
+          </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <p className="text-sm font-medium uppercase tracking-wide text-sky-700">
               {libraryMissionConfig.schoolName}
             </p>
-            <LanguageSelector locale={locale} onChange={setLocale} />
+            <ProgressStatus locale={locale} status={uiStatus} onRetry={retry} />
           </div>
           <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-3xl">
             {t(locale, "mission.title")}
@@ -357,8 +488,11 @@ export function Mission01SchoolLibraryPage() {
                           type="number"
                           step="any"
                           min="0"
+                          name="plot-area"
                           value={areaInput}
-                          onChange={(event) => setAreaInput(event.target.value)}
+                          onChange={(event) =>
+                            setAreaInput(sanitizeNumericSource(event.target.value))
+                          }
                           className="w-full rounded-lg border border-slate-300 px-3 py-2"
                           required
                         />
@@ -376,9 +510,10 @@ export function Mission01SchoolLibraryPage() {
                           type="number"
                           step="any"
                           min="0"
+                          name="plot-perimeter"
                           value={perimeterInput}
                           onChange={(event) =>
-                            setPerimeterInput(event.target.value)
+                            setPerimeterInput(sanitizeNumericSource(event.target.value))
                           }
                           className="w-full rounded-lg border border-slate-300 px-3 py-2"
                           required
@@ -398,6 +533,8 @@ export function Mission01SchoolLibraryPage() {
 
                   {geometryResult ? (
                     <div
+                      data-testid="geometry-result"
+                      data-valid={geometryResult.isValid ? "true" : "false"}
                       className={`mt-4 rounded-lg border p-4 text-sm ${
                         geometryResult.isValid
                           ? "border-emerald-200 bg-emerald-50 text-emerald-900"
@@ -430,6 +567,12 @@ export function Mission01SchoolLibraryPage() {
               comparisonResults={comparisonResults}
               finalArchitectureId={finalArchitectureId}
               bonusResult={bonusResult}
+              compactForm={compactForm}
+              twoBuildingForm={twoBuildingForm}
+              lShapedForm={lShapedForm}
+              onCompactFieldChange={updateCompactField}
+              onTwoBuildingFieldChange={updateTwoBuildingField}
+              onLShapedFieldChange={updateLShapedField}
               onCheckDesign={handleCheckDesign}
               onSelectFinal={handleSelectFinal}
               onCheckBonus={setBonusResult}
@@ -439,16 +582,12 @@ export function Mission01SchoolLibraryPage() {
             <BudgetPanel
               locale={locale}
               finalArchitecture={finalArchitecture}
-              onConstructionChange={(result, selections) => {
-                setConstructionPurchase(result);
-                setConstructionSelections(selections);
-                resetCompletionState();
-              }}
-              onLibraryItemsChange={(result, selections) => {
-                setLibraryItemsPurchase(result);
-                setLibrarySelections(selections);
-                resetCompletionState();
-              }}
+              quantities={quantities}
+              constructionValidation={constructionPurchase}
+              libraryValidation={libraryItemsPurchase}
+              onQuantityChange={updateQuantity}
+              onConstructionSubmit={handleConstructionSubmit}
+              onLibraryItemsSubmit={handleLibraryItemsSubmit}
             />
           </>
         ) : null}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LearnerIdentityBar } from "@/features/account/identity/LearnerIdentityBar";
 
 export const metadata: Metadata = {
   title: "MyCity",
@@ -10,6 +11,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
+        <LearnerIdentityBar />
         <header className="space-y-2">
           <h1 className="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">
             MyCity

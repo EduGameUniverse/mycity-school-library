@@ -2,6 +2,10 @@
 
 import { localizedReportPrompts } from "@/features/mycity/mission-library/data/reportConfig";
 import { t, type Locale } from "@/features/mycity/mission-library/data/i18n";
+import {
+  clampReportAnswer,
+  isReportAnswerAtLimit,
+} from "@/features/mycity/mission-library/logic/reportLimits";
 import { validateGuidedReportAnswers } from "@/features/mycity/mission-library/logic/validation";
 import type {
   GuidedReportAnswers,
@@ -20,12 +24,14 @@ interface FinalReportProps {
 }
 
 function LanguageReportForm({
+  locale,
   languageLabel,
   dir,
   prompts,
   values,
   onFieldChange,
 }: {
+  locale: Locale;
   languageLabel: string;
   dir?: "rtl";
   prompts: (typeof localizedReportPrompts)[Locale];
@@ -68,6 +74,11 @@ function LanguageReportForm({
               rows={3}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-sky-500 focus:border-sky-500 focus:ring-2"
             />
+            {isReportAnswerAtLimit(values[field.key]) ? (
+              <span className="mt-1 block text-xs text-amber-800" role="note">
+                {t(locale, "report.answerLimitReached")}
+              </span>
+            ) : null}
           </label>
         ))}
       </div>
@@ -92,7 +103,8 @@ export function FinalReport({
       ...answers,
       [language]: {
         ...answers[language],
-        [field]: value,
+        /* Bounded in UTF-8 bytes so the on-screen text always equals the persisted text. */
+        [field]: clampReportAnswer(value),
       },
     });
   }
@@ -108,6 +120,7 @@ export function FinalReport({
 
       <div className="mt-4 space-y-6">
         <LanguageReportForm
+          locale={locale}
           languageLabel={t(locale, "report.english")}
           prompts={localizedReportPrompts.en}
           values={answers.english}
@@ -116,12 +129,14 @@ export function FinalReport({
           }
         />
         <LanguageReportForm
+          locale={locale}
           languageLabel={t(locale, "report.french")}
           prompts={localizedReportPrompts.fr}
           values={answers.french}
           onFieldChange={(field, value) => updateLanguage("french", field, value)}
         />
         <LanguageReportForm
+          locale={locale}
           languageLabel={t(locale, "report.arabic")}
           dir="rtl"
           prompts={localizedReportPrompts.ar}
