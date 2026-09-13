@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:mission-logic": "tsx scripts/test-mission-logic.ts"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:mission-logic": "tsx scripts/test-mission-logic.ts",
+    "test:account": "tsx --test src/features/account/progress/libraryPayload.test.ts src/features/account/progress/guestStorage.test.ts src/features/account/progress/progressClient.test.ts src/features/account/progress/saveQueue.test.ts src/features/account/progress/saveScheduler.test.ts src/features/account/progress/progressOwner.test.ts src/features/account/progress/restoreSync.test.ts src/features/account/progress/missionRestore.test.ts src/features/account/identity/identity.test.ts",
+    "test:account:e2e": "node scripts/e2e/run-account-e2e.mjs"
   },
   "dependencies": {
     "next": "16.3.1",
@@ -21,6 +24,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
+    "playwright": "1.62.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"

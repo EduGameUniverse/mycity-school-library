@@ -188,6 +188,30 @@ const en = {
   "report.complete":
     "Trilingual justification complete. You can build when all other tasks are done.",
   "report.finalSummaryTitle": "Final validated summary",
+  "report.answerLimitReached": "Maximum answer length reached.",
+
+  "identity.unconfigured": "EduGame account is not configured for this environment.",
+  "identity.loading": "Checking learner account…",
+  "identity.signedIn": "Signed in",
+  "identity.signedOut": "Not signed in",
+  "identity.learnerId": "EduGame learner ID",
+  "identity.signIn": "Sign in on EduGame",
+  "identity.signUp": "Create an EduGame account",
+  "identity.account": "My account",
+  "identity.signOut": "Sign out",
+
+  "progress.restoring": "Restoring learner progress…",
+  "progress.saving": "Saving progress…",
+  "progress.saved": "Progress saved to your EduGame account.",
+  "progress.saveFailed": "Could not save progress.",
+  "progress.migrating": "Moving guest progress to this account…",
+  "progress.migrated": "Guest progress moved to this account.",
+  "progress.migrationFailed": "Could not move guest progress.",
+  "progress.conflictKeptLocal":
+    "This account already has progress. The local guest copy was kept.",
+  "progress.guestRetained": "Progress saved on this device.",
+  "progress.ownerChanged": "Learner account changed. Progress was not mixed.",
+  "progress.retry": "Retry",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -387,6 +411,32 @@ const fr: Record<I18nKey, string> = {
   "report.complete":
     "Justification trilingue terminée. Vous pouvez construire lorsque les autres tâches sont faites.",
   "report.finalSummaryTitle": "Résumé final validé",
+  "report.answerLimitReached": "Longueur maximale de la réponse atteinte.",
+
+  "identity.unconfigured":
+    "Le compte EduGame n'est pas configuré pour cet environnement.",
+  "identity.loading": "Vérification du compte apprenant…",
+  "identity.signedIn": "Connecté",
+  "identity.signedOut": "Non connecté",
+  "identity.learnerId": "Identifiant apprenant EduGame",
+  "identity.signIn": "Se connecter sur EduGame",
+  "identity.signUp": "Créer un compte EduGame",
+  "identity.account": "Mon compte",
+  "identity.signOut": "Se déconnecter",
+
+  "progress.restoring": "Restauration de la progression…",
+  "progress.saving": "Enregistrement de la progression…",
+  "progress.saved": "Progression enregistrée dans votre compte EduGame.",
+  "progress.saveFailed": "Impossible d'enregistrer la progression.",
+  "progress.migrating": "Transfert de la progression invitée vers ce compte…",
+  "progress.migrated": "Progression invitée transférée vers ce compte.",
+  "progress.migrationFailed": "Impossible de transférer la progression invitée.",
+  "progress.conflictKeptLocal":
+    "Ce compte a déjà une progression. La copie invitée locale a été conservée.",
+  "progress.guestRetained": "Progression enregistrée sur cet appareil.",
+  "progress.ownerChanged":
+    "Le compte apprenant a changé. Les progressions n'ont pas été mélangées.",
+  "progress.retry": "Réessayer",
 };
 
 const ar: Record<I18nKey, string> = {
@@ -573,6 +623,30 @@ const ar: Record<I18nKey, string> = {
   "report.complete":
     "اكتملت التبريرات بثلاث لغات. يمكنك البناء عندما تكتمل المهام الأخرى.",
   "report.finalSummaryTitle": "الملخص النهائي المصادق عليه",
+  "report.answerLimitReached": "تم الوصول إلى الحد الأقصى لطول الإجابة.",
+
+  "identity.unconfigured": "حساب EduGame غير مهيأ لهذه البيئة.",
+  "identity.loading": "جارٍ التحقق من حساب المتعلم…",
+  "identity.signedIn": "تم تسجيل الدخول",
+  "identity.signedOut": "غير مسجّل الدخول",
+  "identity.learnerId": "معرّف متعلم EduGame",
+  "identity.signIn": "تسجيل الدخول في EduGame",
+  "identity.signUp": "إنشاء حساب EduGame",
+  "identity.account": "حسابي",
+  "identity.signOut": "تسجيل الخروج",
+
+  "progress.restoring": "جارٍ استعادة تقدم المتعلم…",
+  "progress.saving": "جارٍ حفظ التقدم…",
+  "progress.saved": "تم حفظ التقدم في حساب EduGame الخاص بك.",
+  "progress.saveFailed": "تعذر حفظ التقدم.",
+  "progress.migrating": "جارٍ نقل تقدم الضيف إلى هذا الحساب…",
+  "progress.migrated": "تم نقل تقدم الضيف إلى هذا الحساب.",
+  "progress.migrationFailed": "تعذر نقل تقدم الضيف.",
+  "progress.conflictKeptLocal":
+    "هذا الحساب لديه تقدم بالفعل. تم الاحتفاظ بنسخة الضيف المحلية.",
+  "progress.guestRetained": "تم حفظ التقدم على هذا الجهاز.",
+  "progress.ownerChanged": "تغير حساب المتعلم. لم تُخلط بيانات التقدم.",
+  "progress.retry": "إعادة المحاولة",
 };
 
 const dictionaries: Record<Locale, Record<I18nKey, string>> = {

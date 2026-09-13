@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { libraryBudgetConfig } from "@/features/mycity/mission-library/data/budgetConfig";
 import { t, type I18nKey, type Locale } from "@/features/mycity/mission-library/data/i18n";
 import {
@@ -17,19 +17,12 @@ import {
 } from "@/features/mycity/mission-library/logic/budget";
 import {
   buildSelectedStoreItems,
-  createEmptyQuantityMap,
-  filterSelectionsByBudgetScope,
   getPurchaseLineItems,
 } from "@/features/mycity/mission-library/logic/storeSelection";
-import {
-  validateConstructionPurchase,
-  validateLibraryItemsPurchase,
-} from "@/features/mycity/mission-library/logic/validation";
 import type {
   ArchitectureDesignResult,
   BudgetScope,
   ScopedPurchaseValidationResult,
-  SelectedStoreItem,
   StoreCategory,
   StoreUnit,
 } from "@/features/mycity/mission-library/types/missionTypes";
@@ -63,14 +56,13 @@ function fillTemplate(
 interface BudgetPanelProps {
   locale: Locale;
   finalArchitecture: ArchitectureDesignResult | null;
-  onConstructionChange: (
-    result: ScopedPurchaseValidationResult | null,
-    selections: SelectedStoreItem[],
-  ) => void;
-  onLibraryItemsChange: (
-    result: ScopedPurchaseValidationResult | null,
-    selections: SelectedStoreItem[],
-  ) => void;
+  /** Store quantities are owned by the page so they can be persisted and restored. */
+  quantities: Record<string, number>;
+  constructionValidation: ScopedPurchaseValidationResult | null;
+  libraryValidation: ScopedPurchaseValidationResult | null;
+  onQuantityChange: (itemId: string, value: string) => void;
+  onConstructionSubmit: () => void;
+  onLibraryItemsSubmit: () => void;
 }
 
 function StoreSection({
@@ -276,51 +268,13 @@ function StoreSection({
 export function BudgetPanel({
   locale,
   finalArchitecture,
-  onConstructionChange,
-  onLibraryItemsChange,
+  quantities,
+  constructionValidation,
+  libraryValidation,
+  onQuantityChange,
+  onConstructionSubmit,
+  onLibraryItemsSubmit,
 }: BudgetPanelProps) {
-  const [quantities, setQuantities] = useState(createEmptyQuantityMap);
-  const [constructionValidation, setConstructionValidation] =
-    useState<ScopedPurchaseValidationResult | null>(null);
-  const [libraryValidation, setLibraryValidation] =
-    useState<ScopedPurchaseValidationResult | null>(null);
-
-  function updateQuantity(itemId: string, value: string) {
-    const parsed = Number(value);
-    const nextQuantities = {
-      ...quantities,
-      [itemId]: Number.isFinite(parsed) ? Math.max(0, parsed) : 0,
-    };
-    setQuantities(nextQuantities);
-    setConstructionValidation(null);
-    setLibraryValidation(null);
-    onConstructionChange(null, buildSelectedStoreItems(nextQuantities));
-    onLibraryItemsChange(null, buildSelectedStoreItems(nextQuantities));
-  }
-
-  function handleConstructionSubmit() {
-    const selections = buildSelectedStoreItems(quantities);
-    const result = validateConstructionPurchase(
-      selections,
-      finalArchitecture?.construction,
-    );
-    setConstructionValidation(result);
-    onConstructionChange(
-      result,
-      filterSelectionsByBudgetScope(selections, "construction"),
-    );
-  }
-
-  function handleLibraryItemsSubmit() {
-    const selections = buildSelectedStoreItems(quantities);
-    const result = validateLibraryItemsPurchase(selections);
-    setLibraryValidation(result);
-    onLibraryItemsChange(
-      result,
-      filterSelectionsByBudgetScope(selections, "library-items"),
-    );
-  }
-
   if (!finalArchitecture?.isValid) {
     return (
       <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
@@ -354,8 +308,8 @@ export function BudgetPanel({
         budgetScope="construction"
         categories={constructionCategoryDisplay}
         quantities={quantities}
-        onQuantityChange={updateQuantity}
-        onSubmit={handleConstructionSubmit}
+        onQuantityChange={onQuantityChange}
+        onSubmit={onConstructionSubmit}
         submitLabel={t(locale, "budget.constructionSubmit")}
         validation={constructionValidation}
       />
@@ -368,8 +322,8 @@ export function BudgetPanel({
         budgetScope="library-items"
         categories={libraryItemsCategoryDisplay}
         quantities={quantities}
-        onQuantityChange={updateQuantity}
-        onSubmit={handleLibraryItemsSubmit}
+        onQuantityChange={onQuantityChange}
+        onSubmit={onLibraryItemsSubmit}
         submitLabel={t(locale, "budget.libraryItemsSubmit")}
         validation={libraryValidation}
       />
